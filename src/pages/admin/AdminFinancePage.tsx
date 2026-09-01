@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import {
   Wallet,
@@ -12,6 +13,7 @@ import {
   ShieldCheck,
   CheckCircle2,
   FileSpreadsheet,
+  HeartHandshake,
 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
@@ -20,6 +22,7 @@ import { Modal } from '../../components/ui/Modal';
 import { IncomeExpenseChart, FundDistributionCard } from '../../components/charts/FinancialCharts';
 
 export const AdminFinancePage: React.FC = () => {
+  const navigate = useNavigate();
   const { funds, transactions, addTransaction, addToast } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFund, setSelectedFund] = useState('All');
@@ -103,7 +106,15 @@ export const AdminFinancePage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<HeartHandshake className="w-4 h-4 text-emerald-600" />}
+            onClick={() => navigate('/admin/finance/donations')}
+          >
+            Donations & Zakat Logs
+          </Button>
           <Button
             variant="outline"
             size="sm"

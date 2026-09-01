@@ -223,7 +223,7 @@ export interface Transaction {
   category: string;
   amountETB: number;
   description: string;
-  paymentMethod: 'Telebirr' | 'CBE Birr' | 'Bank Transfer' | 'Cash' | 'Cheque';
+  paymentMethod: 'Telebirr' | 'CBE Birr' | 'Bank Transfer' | 'Cash' | 'Cheque' | 'Awash Bank' | 'International Remittance';
   status: 'Completed' | 'Pending' | 'Flagged';
   recordedBy: string;
   approvedBy?: string;
@@ -241,10 +241,30 @@ export interface Donation {
   fundId: string;
   fundName: string;
   date: string;
-  paymentMethod: 'Telebirr' | 'CBE Birr' | 'Bank Transfer' | 'Cash';
+  paymentMethod: 'Telebirr' | 'CBE Birr' | 'Bank Transfer' | 'Cash' | 'Awash Bank' | 'International Remittance';
   status: 'Completed' | 'Processing' | 'Refunded';
   notes?: string;
   certificateIssued: boolean;
+  categoryType?: 'Zakat ul-Mal' | 'Zakat ul-Fitr' | 'Coffee Harvest Ushr' | 'Sadaqah Jariyah' | 'General Sadaqah' | 'Orphan Sponsorship' | 'Madrasa Scholarship' | 'Waqf Endowment' | 'Kaffarah / Fidyah' | 'Emergency Relief';
+  district?: string;
+  asnafCategory?: string;
+  hijriDate?: string;
+  transactionRef?: string;
+  collectorName?: string;
+  taxExemptCode?: string;
+}
+
+export interface ZakatBeneficiaryDistribution {
+  id: string;
+  asnafCategory: 'Al-Fuqara (The Destitute)' | 'Al-Masakeen (The Needy)' | 'Amilina Alayha (Zakat Collectors)' | 'Al-Mu’allafatu Qulubuhum' | 'Fir-Riqab (Emergency Freedom)' | 'Al-Gharimeen (Insolvent Debtors)' | 'Fi Sabilillah (In Allah’s Cause / Dawah)' | 'Ibnus-Sabeel (Stranded Travellers)';
+  arabicName: string;
+  woredaDistrict: string;
+  beneficiaryCount: number;
+  totalDisbursedETB: number;
+  lastDisbursalDate: string;
+  distributionChannel: string;
+  leadOfficer: string;
+  notes: string;
 }
 
 export interface Fund {
@@ -501,5 +521,57 @@ export interface GatewayChannelStats {
   telegramChannelName: string;
   telegramSubscribers: number;
   telegramMessagesSent: number;
+}
+
+// Educational Materials, PDF Handbooks & Khutbah Templates
+export type ResourceCategory =
+  | 'Khutbah Template'
+  | 'Educational Material'
+  | 'PDF Handbook'
+  | 'Fiqh & Fatwa Guide'
+  | 'Tajweed & Tahfeez'
+  | 'Administrative Protocol';
+
+export type ResourceTargetInstitution = 'Both' | 'Mosques Only' | 'Madrasas Only' | 'Community Wide';
+
+export type ResourceLanguage = 'Arabic' | 'Afaan Oromoo' | 'English' | 'Amharic' | 'Multilingual';
+
+export type ResourceFormat = 'PDF' | 'DOCX' | 'PPTX' | 'Audio/MP3' | 'Printable Sheet';
+
+export interface ResourcePreviewContent {
+  arabicText?: string;
+  translationOromo?: string;
+  translationEnglish?: string;
+  keyThemes?: string[];
+  tableOfContents?: string[];
+  sampleExcerpt?: string;
+}
+
+export interface CouncilResource {
+  id: string;
+  title: string;
+  arabicTitle?: string;
+  oromoTitle?: string;
+  category: ResourceCategory;
+  subCategory?: string;
+  targetInstitution: ResourceTargetInstitution;
+  targetAudience: string;
+  language: ResourceLanguage;
+  format: ResourceFormat;
+  fileSize: string;
+  downloadUrl: string;
+  uploadedBy: string;
+  author: string;
+  department: string;
+  uploadDate: string;
+  hijriDate: string;
+  downloadsCount: number;
+  isFeatured?: boolean;
+  isPinnedForJummah?: boolean;
+  seasonOrOccasion?: string;
+  description: string;
+  summaryPoints: string[];
+  tags: string[];
+  previewContent?: ResourcePreviewContent;
 }
 

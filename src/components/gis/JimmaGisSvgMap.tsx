@@ -67,7 +67,7 @@ export const JimmaGisSvgMap: React.FC<JimmaGisSvgMapProps> = ({
     onSelectPoi(null);
   };
 
-  // Mouse pan handlers
+  // Mouse and Touch pan handlers
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
     setIsDragging(true);
@@ -83,6 +83,27 @@ export const JimmaGisSvgMap: React.FC<JimmaGisSvgMapProps> = ({
   };
 
   const handleMouseUp = () => setIsDragging(false);
+
+  // Touch handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      setDragStart({
+        x: e.touches[0].clientX - panOffset.x,
+        y: e.touches[0].clientY - panOffset.y,
+      });
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    setPanOffset({
+      x: e.touches[0].clientX - dragStart.x,
+      y: e.touches[0].clientY - dragStart.y,
+    });
+  };
+
+  const handleTouchEnd = () => setIsDragging(false);
 
   // Toggle fullscreen
   const toggleFullscreen = () => {
@@ -213,64 +234,67 @@ export const JimmaGisSvgMap: React.FC<JimmaGisSvgMapProps> = ({
     <div
       ref={mapContainerRef}
       className={`relative w-full overflow-hidden bg-stone-900 rounded-3xl border border-stone-800 shadow-2xl transition-all ${
-        isFullscreen ? 'h-screen rounded-none' : 'h-[620px]'
+        isFullscreen ? 'h-screen rounded-none' : 'h-[440px] sm:h-[540px] lg:h-[620px]'
       }`}
     >
       {/* Top Floating Control Bar */}
-      <div className="absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
+      <div className="absolute top-3 left-3 right-3 sm:top-4 sm:left-4 sm:right-4 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
         {/* Left Status & Zone Badge */}
-        <div className="pointer-events-auto flex items-center gap-2 bg-stone-950/85 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-stone-700/60 shadow-lg text-xs text-stone-200">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="font-semibold text-emerald-400">Jimma Zone Spatial GIS</span>
-          <span className="text-stone-500">|</span>
-          <span className="text-stone-300">18 Woredas • 920+ Masajid</span>
+        <div className="pointer-events-auto flex items-center gap-2 bg-stone-950/85 backdrop-blur-md px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-2xl border border-stone-700/60 shadow-lg text-[11px] sm:text-xs text-stone-200">
+          <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+          <span className="font-semibold text-emerald-400 truncate">Jimma Zone Spatial GIS</span>
+          <span className="hidden sm:inline text-stone-500">|</span>
+          <span className="hidden sm:inline text-stone-300">18 Woredas</span>
           {heatmapMode !== 'none' && (
-            <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] uppercase font-bold">
-              Layer: {heatmapMode.replace('_', ' ')}
+            <span className="px-1.5 sm:px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] sm:text-[10px] uppercase font-bold truncate">
+              {heatmapMode.replace('_', ' ')}
             </span>
           )}
         </div>
 
         {/* Right Map Canvas Action Buttons */}
-        <div className="pointer-events-auto flex items-center gap-1.5 bg-stone-950/85 backdrop-blur-md p-1.5 rounded-2xl border border-stone-700/60 shadow-lg">
+        <div className="pointer-events-auto flex items-center gap-1 bg-stone-950/85 backdrop-blur-md p-1 sm:p-1.5 rounded-2xl border border-stone-700/60 shadow-lg">
           <button
             onClick={handleZoomIn}
             title="Zoom In"
-            className="p-2 hover:bg-stone-800 text-stone-200 hover:text-white rounded-xl transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 hover:bg-stone-800 text-stone-200 hover:text-white rounded-xl transition-colors cursor-pointer"
           >
-            <ZoomIn className="w-4 h-4" />
+            <ZoomIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
           <button
             onClick={handleZoomOut}
             title="Zoom Out"
-            className="p-2 hover:bg-stone-800 text-stone-200 hover:text-white rounded-xl transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 hover:bg-stone-800 text-stone-200 hover:text-white rounded-xl transition-colors cursor-pointer"
           >
-            <ZoomOut className="w-4 h-4" />
+            <ZoomOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
           <button
             onClick={handleReset}
             title="Reset Map View"
-            className="p-2 hover:bg-stone-800 text-stone-200 hover:text-white rounded-xl transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 hover:bg-stone-800 text-stone-200 hover:text-white rounded-xl transition-colors cursor-pointer"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
           <button
             onClick={toggleFullscreen}
             title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Map'}
-            className="p-2 hover:bg-stone-800 text-stone-200 hover:text-white rounded-xl transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 hover:bg-stone-800 text-stone-200 hover:text-white rounded-xl transition-colors cursor-pointer"
           >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
           </button>
         </div>
       </div>
 
       {/* Interactive Map SVG Canvas */}
       <div
-        className="w-full h-full cursor-grab active:cursor-grabbing select-none"
+        className="w-full h-full cursor-grab active:cursor-grabbing select-none touch-none"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <svg
           viewBox="0 0 1000 650"

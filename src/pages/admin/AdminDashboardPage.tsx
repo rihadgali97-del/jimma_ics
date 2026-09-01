@@ -92,6 +92,11 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <Link to="/admin/resources">
+            <Button variant="outline" size="sm" icon={<BookOpen className="w-4 h-4 text-emerald-600" />}>
+              Khutbahs & Materials
+            </Button>
+          </Link>
           <Link to="/admin/attendance">
             <Button variant="outline" size="sm" icon={<CalendarCheck2 className="w-4 h-4 text-emerald-600" />}>
               Daily Attendance

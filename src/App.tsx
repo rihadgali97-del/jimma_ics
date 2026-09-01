@@ -42,6 +42,8 @@ import { AdminGatewayPage } from './pages/admin/AdminGatewayPage';
 import { AdminEventsPage } from './pages/admin/AdminEventsPage';
 import { AdminStaffAndRolesPage } from './pages/admin/AdminStaffAndRolesPage';
 import { AdminAttendancePage } from './pages/admin/AdminAttendancePage';
+import { AdminResourcesPage } from './pages/admin/AdminResourcesPage';
+import { AdminDonationsAndZakatPage } from './pages/admin/AdminDonationsAndZakatPage';
 
 export default function App() {
   return (
@@ -83,10 +85,15 @@ export default function App() {
                 <Route path="teachers" element={<AdminTeachersPage />} />
                 <Route path="ulema" element={<AdminUlemaPage />} />
                 <Route path="finance" element={<AdminFinancePage />} />
+                <Route path="finance/donations" element={<AdminDonationsAndZakatPage />} />
+                <Route path="finance/approvals" element={<AdminFinancePage />} />
+                <Route path="donations" element={<AdminDonationsAndZakatPage />} />
+                <Route path="zakat" element={<AdminDonationsAndZakatPage />} />
                 <Route path="services" element={<AdminServicesPage />} />
                 <Route path="gateway" element={<AdminGatewayPage />} />
                 <Route path="events" element={<AdminEventsPage />} />
                 <Route path="documents" element={<AdminDocumentsPage />} />
+                <Route path="resources" element={<AdminResourcesPage />} />
                 <Route path="users" element={<AdminStaffAndRolesPage />} />
                 <Route path="staff" element={<AdminStaffAndRolesPage />} />
               </Route>

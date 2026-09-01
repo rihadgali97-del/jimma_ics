@@ -25,14 +25,17 @@ import {
   RoleDefinition,
   PermissionCategory,
   SecurityAuditLog,
+  CouncilResource,
+  ZakatBeneficiaryDistribution,
 } from '../types';
 import { mockMosques } from '../data/mockMosques';
 import { mockMadrasas } from '../data/mockMadrasas';
 import { mockStudents, mockTeachers } from '../data/mockStudents';
 import { mockUlema } from '../data/mockUlema';
-import { mockFunds, mockTransactions, mockDonations, mockExpenseApprovals } from '../data/mockFinance';
+import { mockFunds, mockTransactions, mockDonations, mockExpenseApprovals, mockZakatDistributions } from '../data/mockFinance';
 import { mockPublicServices, mockServiceRequests, ServiceItem } from '../data/mockServices';
 import { mockEvents, mockAnnouncements, mockDocuments, mockUsers, mockEventRegistrations } from '../data/mockEventsAndDocs';
+import { initialCouncilResources } from '../data/mockResources';
 import { mockDispatchHistory, initialGatewayStats } from '../data/mockGatewayData';
 import { initialStaffMembers, mockRoles, permissionCategories as defaultPermissionCategories, initialSecurityLogs } from '../data/mockStaffAndRoles';
 import { initialAttendanceSessions, initialStaffAttendance } from '../data/mockAttendance';
@@ -87,6 +90,11 @@ interface AppContextType {
 
   donations: Donation[];
   addDonation: (donation: Omit<Donation, 'id' | 'receiptNo' | 'date' | 'status' | 'certificateIssued'>) => Donation;
+  updateDonation: (id: string, updates: Partial<Donation>) => void;
+  deleteDonation: (id: string) => void;
+  zakatDistributions: ZakatBeneficiaryDistribution[];
+  addZakatDistribution: (item: Omit<ZakatBeneficiaryDistribution, 'id'>) => ZakatBeneficiaryDistribution;
+  updateZakatDistribution: (id: string, updates: Partial<ZakatBeneficiaryDistribution>) => void;
 
   expenseApprovals: ExpenseApproval[];
   updateExpenseStatus: (id: string, status: ExpenseApproval['status'], comment?: string) => void;
@@ -106,6 +114,13 @@ interface AppContextType {
   checkInAttendee: (regId: string) => void;
   announcements: Announcement[];
   documents: CouncilDocument[];
+
+  // Educational Resources, Handbooks & Khutbahs
+  resources: CouncilResource[];
+  addResource: (resource: Omit<CouncilResource, 'id' | 'uploadDate' | 'downloadsCount'>) => CouncilResource;
+  updateResource: (id: string, updates: Partial<CouncilResource>) => void;
+  deleteResource: (id: string) => void;
+  incrementResourceDownload: (id: string) => void;
 
   // Gateway & Communications
   gatewayStats: GatewayChannelStats;
@@ -154,12 +169,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [funds, setFunds] = useState<Fund[]>(mockFunds);
   const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
   const [donations, setDonations] = useState<Donation[]>(mockDonations);
+  const [zakatDistributions, setZakatDistributions] = useState<ZakatBeneficiaryDistribution[]>(mockZakatDistributions);
   const [expenseApprovals, setExpenseApprovals] = useState<ExpenseApproval[]>(mockExpenseApprovals);
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>(mockServiceRequests);
   const [events, setEvents] = useState<CouncilEvent[]>(mockEvents);
   const [eventRegistrations, setEventRegistrations] = useState<EventRegistration[]>(mockEventRegistrations);
   const [announcements] = useState<Announcement[]>(mockAnnouncements);
   const [documents] = useState<CouncilDocument[]>(mockDocuments);
+  const [resources, setResources] = useState<CouncilResource[]>(initialCouncilResources);
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
 
@@ -463,6 +480,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     addToast('Donation Received! Jazakallahu Khayran', `Receipt #${receiptNo} generated for ${data.amountETB.toLocaleString()} ETB.`, 'success');
     return newDonation;
+  };
+
+  const updateDonation = (id: string, updates: Partial<Donation>) => {
+    setDonations((prev) => prev.map((d) => (d.id === id ? { ...d, ...updates } : d)));
+    addToast('Donation Updated', 'The donation record has been updated.', 'info');
+  };
+
+  const deleteDonation = (id: string) => {
+    setDonations((prev) => prev.filter((d) => d.id !== id));
+    addToast('Donation Removed', 'The donation entry has been removed from the registry.', 'info');
+  };
+
+  const addZakatDistribution = (item: Omit<ZakatBeneficiaryDistribution, 'id'>): ZakatBeneficiaryDistribution => {
+    const id = `zdis-${Date.now()}`;
+    const newEntry: ZakatBeneficiaryDistribution = { ...item, id };
+    setZakatDistributions((prev) => [newEntry, ...prev]);
+
+    // Also record transaction
+    addTransaction({
+      date: newEntry.lastDisbursalDate || new Date().toISOString().split('T')[0],
+      type: 'Disbursement',
+      fundId: 'fund-4',
+      fundName: 'Zakat & Social Welfare Fund',
+      category: `Zakat: ${newEntry.asnafCategory}`,
+      amountETB: newEntry.totalDisbursedETB,
+      description: `Disbursed to ${newEntry.beneficiaryCount} beneficiaries in ${newEntry.woredaDistrict}`,
+      paymentMethod: 'Bank Transfer',
+      status: 'Completed',
+      recordedBy: newEntry.leadOfficer || currentUser.name,
+    });
+
+    addToast('Zakat Disbursed', `Disbursed ${newEntry.totalDisbursedETB.toLocaleString()} ETB for ${newEntry.asnafCategory}.`, 'success');
+    return newEntry;
+  };
+
+  const updateZakatDistribution = (id: string, updates: Partial<ZakatBeneficiaryDistribution>) => {
+    setZakatDistributions((prev) => prev.map((z) => (z.id === id ? { ...z, ...updates } : z)));
+    addToast('Zakat Distribution Updated', 'Beneficiary record updated.', 'info');
   };
 
   const updateExpenseStatus = (id: string, status: ExpenseApproval['status'], comment?: string) => {
@@ -900,6 +955,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addToast('Attendee Checked In', 'Pass verified at venue entrance.', 'success');
   };
 
+  // Resource Management Handlers
+  const addResource = (
+    data: Omit<CouncilResource, 'id' | 'uploadDate' | 'downloadsCount'>
+  ): CouncilResource => {
+    const newId = `res-${Date.now()}`;
+    const today = new Date().toISOString().split('T')[0];
+    const newResource: CouncilResource = {
+      ...data,
+      id: newId,
+      uploadDate: today,
+      downloadsCount: 0,
+    };
+    setResources((prev) => [newResource, ...prev]);
+    addToast(
+      'Resource Published Successfully',
+      `"${newResource.title}" is now available in the resource repository.`,
+      'success'
+    );
+    return newResource;
+  };
+
+  const updateResource = (id: string, updates: Partial<CouncilResource>) => {
+    setResources((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, ...updates } : r))
+    );
+    addToast('Resource Updated', 'The material details and settings have been updated.', 'info');
+  };
+
+  const deleteResource = (id: string) => {
+    setResources((prev) => prev.filter((r) => r.id !== id));
+    addToast('Resource Deleted', 'The selected item was removed from the repository.', 'info');
+  };
+
+  const incrementResourceDownload = (id: string) => {
+    setResources((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, downloadsCount: (r.downloadsCount || 0) + 1 } : r))
+    );
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -935,6 +1029,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addTransaction,
         donations,
         addDonation,
+        updateDonation,
+        deleteDonation,
+        zakatDistributions,
+        addZakatDistribution,
+        updateZakatDistribution,
         expenseApprovals,
         updateExpenseStatus,
         publicServices: mockPublicServices,
@@ -951,6 +1050,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         checkInAttendee,
         announcements,
         documents,
+        resources,
+        addResource,
+        updateResource,
+        deleteResource,
+        incrementResourceDownload,
         gatewayStats,
         dispatchHistory,
         dispatchMessage,
