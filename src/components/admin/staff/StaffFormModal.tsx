@@ -357,7 +357,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                     Role Summary: {selectedRoleDef.name}
                   </span>
                   <Badge variant="gold" className="text-[10px]">
-                    {selectedRoleDef.permissions.length} Default Permissions
+                    {(selectedRoleDef.permissions || []).length} Default Permissions
                   </Badge>
                 </div>
                 <p className="text-stone-600 dark:text-stone-400 text-[11px] leading-relaxed">
@@ -463,7 +463,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                       </h5>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {cat.permissions.map((p) => {
-                          const isInherited = selectedRoleDef?.permissions.includes(p.id);
+                          const isInherited = (selectedRoleDef?.permissions || []).includes(p.id);
                           const isCustom = formData.customPermissions.includes(p.id);
                           const isChecked = isInherited || isCustom;
 

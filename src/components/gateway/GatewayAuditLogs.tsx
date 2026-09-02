@@ -29,10 +29,11 @@ export const GatewayAuditLogs: React.FC = () => {
   const [selectedLog, setSelectedLog] = useState<DispatchLogItem | null>(null);
 
   const filteredLogs = dispatchHistory.filter((log) => {
+    const s = (searchTerm || '').toLowerCase();
     const matchSearch =
-      log.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.recipientTarget.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.content.toLowerCase().includes(searchTerm.toLowerCase());
+      (log.title || '').toLowerCase().includes(s) ||
+      (log.recipientTarget || '').toLowerCase().includes(s) ||
+      (log.content || '').toLowerCase().includes(s);
     const matchCategory = categoryFilter === 'All' || log.category === categoryFilter;
     const matchChannel = channelFilter === 'All' || log.channel === channelFilter;
     return matchSearch && matchCategory && matchChannel;

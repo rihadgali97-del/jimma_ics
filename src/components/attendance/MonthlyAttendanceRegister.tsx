@@ -49,10 +49,10 @@ export const MonthlyAttendanceRegister: React.FC<MonthlyAttendanceRegisterProps>
   };
 
   const filteredEntries = entries.filter((entry, idx) => {
-    const term = searchTerm.toLowerCase();
+    const term = (searchTerm || '').toLowerCase();
     const matchSearch =
-      entry.studentName.toLowerCase().includes(term) ||
-      entry.guardianName.toLowerCase().includes(term);
+      (entry.studentName || '').toLowerCase().includes(term) ||
+      (entry.guardianName || '').toLowerCase().includes(term);
 
     // Calculate 30-day absence count
     let absentCount = 0;
@@ -83,7 +83,7 @@ export const MonthlyAttendanceRegister: React.FC<MonthlyAttendanceRegisterProps>
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `monthly-attendance-${madrasaName.replace(/\s+/g, '-').toLowerCase()}-safar-1448.csv`;
+    link.download = `monthly-attendance-${(madrasaName || 'madrasa').replace(/\s+/g, '-').toLowerCase()}-safar-1448.csv`;
     link.click();
     URL.revokeObjectURL(url);
     addToast('CSV Exported', 'Monthly 30-Day Attendance Matrix downloaded.', 'success');

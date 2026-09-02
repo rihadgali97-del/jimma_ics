@@ -938,7 +938,7 @@ export const AdminResourcesPage: React.FC = () => {
 
                 {/* Tags */}
                 <div className="flex flex-wrap gap-1 mt-3">
-                  {res.tags.slice(0, 3).map((tag, idx) => (
+                  {(res.tags || []).slice(0, 3).map((tag, idx) => (
                     <span
                       key={idx}
                       className="text-[10px] bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 px-2 py-0.5 rounded"
@@ -946,8 +946,8 @@ export const AdminResourcesPage: React.FC = () => {
                       #{tag}
                     </span>
                   ))}
-                  {res.tags.length > 3 && (
-                    <span className="text-[10px] text-stone-400">+{res.tags.length - 3}</span>
+                  {(res.tags || []).length > 3 && (
+                    <span className="text-[10px] text-stone-400">+{(res.tags || []).length - 3}</span>
                   )}
                 </div>
               </div>
@@ -1297,7 +1297,7 @@ export const AdminResourcesPage: React.FC = () => {
                       Core Institutional Takeaways
                     </h4>
                     <ul className="space-y-2 text-sm text-stone-700 dark:text-stone-300">
-                      {previewingResource.summaryPoints.map((pt, idx) => (
+                      {(previewingResource.summaryPoints || []).map((pt, idx) => (
                         <li key={idx} className="flex items-start gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
                           <span>{pt}</span>
@@ -1329,7 +1329,7 @@ export const AdminResourcesPage: React.FC = () => {
                     Curriculum & Handbook Sections
                   </h4>
                   <ul className="divide-y divide-stone-100 dark:divide-stone-700 text-sm text-stone-700 dark:text-stone-300">
-                    {previewingResource.previewContent.tableOfContents.map((chap, idx) => (
+                    {(previewingResource.previewContent.tableOfContents || []).map((chap, idx) => (
                       <li key={idx} className="py-2 flex items-center justify-between">
                         <span>{chap}</span>
                         <ChevronRight className="w-4 h-4 text-stone-400" />

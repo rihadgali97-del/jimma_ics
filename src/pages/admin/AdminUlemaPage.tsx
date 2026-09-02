@@ -18,12 +18,14 @@ export const AdminUlemaPage: React.FC = () => {
   const { ulema } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filtered = ulema.filter(
-    (u) =>
-      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.councilRole.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.district.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = ulema.filter((u) => {
+    const s = (searchTerm || '').toLowerCase();
+    return (
+      (u.name || '').toLowerCase().includes(s) ||
+      (u.councilRole || '').toLowerCase().includes(s) ||
+      (u.district || '').toLowerCase().includes(s)
+    );
+  });
 
   return (
     <div className="space-y-6">

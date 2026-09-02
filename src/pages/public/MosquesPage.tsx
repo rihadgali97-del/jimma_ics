@@ -8,20 +8,20 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 
 export const MosquesPage: React.FC = () => {
-  const { mosques } = useApp();
+  const { mosques = [] } = useApp();
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
 
   // Extract unique districts
-  const districts = ['All', ...Array.from(new Set(mosques.map((m) => m.district)))];
+  const districts = ['All', ...Array.from(new Set((mosques || []).map((m) => m.district).filter(Boolean)))];
 
-  const filteredMosques = mosques.filter((m) => {
+  const filteredMosques = (mosques || []).filter((m) => {
     const matchSearch =
-      m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.district.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.imam.toLowerCase().includes(searchTerm.toLowerCase());
+      (m.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (m.district || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (m.imam || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchDistrict = selectedDistrict === 'All' || m.district === selectedDistrict;
     const matchStatus = selectedStatus === 'All' || m.status === selectedStatus;
     return matchSearch && matchDistrict && matchStatus;
@@ -91,84 +91,97 @@ export const MosquesPage: React.FC = () => {
 
       {/* Mosques Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredMosques.map((mosque) => (
-          <Card key={mosque.id} hoverEffect className="flex flex-col justify-between">
-            <div>
-              {/* Image & Status Tag */}
-              <div className="h-44 rounded-xl overflow-hidden mb-4 relative bg-stone-800">
-                <img
-                  src={mosque.imageUrl}
-                  alt={mosque.name}
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="absolute top-3 right-3">
-                  <Badge variant={mosque.status === 'Active' ? 'emerald' : 'gold'}>
-                    {mosque.status}
-                  </Badge>
-                </div>
-                <div className="absolute bottom-3 left-3 bg-stone-950/80 backdrop-blur-xs text-white text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                  <span>{mosque.district}</span>
-                </div>
-              </div>
+        {filteredMosques.map((mosque) => {
+          const facilitiesList = mosque.facilities || [];
+          const imageSrc =
+            mosque.image ||
+            mosque.imageUrl ||
+            'https://images.unsplash.com/photo-1542816417-0983c9c9ad53?auto=format&fit=crop&w=800&q=80';
 
-              <h3 className="text-lg font-serif font-bold text-stone-900 dark:text-stone-100">
-                {mosque.name}
-              </h3>
-              <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 line-clamp-2 leading-relaxed">
-                {mosque.description}
-              </p>
+          return (
+            <Card key={mosque.id} hoverEffect className="flex flex-col justify-between">
+              <div>
+                {/* Image & Status Tag */}
+                <div className="h-44 rounded-xl overflow-hidden mb-4 relative bg-stone-800">
+                  <img
+                    src={imageSrc}
+                    alt={mosque.name}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute top-3 right-3">
+                    <Badge variant={mosque.status === 'Active' ? 'emerald' : 'gold'}>
+                      {mosque.status || 'Active'}
+                    </Badge>
+                  </div>
+                  <div className="absolute bottom-3 left-3 bg-stone-950/80 backdrop-blur-xs text-white text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{mosque.district}</span>
+                  </div>
+                </div>
 
-              {/* Key metadata */}
-              <div className="mt-4 pt-3 border-t border-stone-100 dark:border-stone-800 space-y-2 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-stone-500">Imam Khatib:</span>
-                  <span className="font-semibold text-stone-800 dark:text-stone-200">
-                    {mosque.imam}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-stone-500">Capacity:</span>
-                  <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400">
-                    {mosque.capacity.toLocaleString()} worshippers
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-stone-500">Linked Madrasa:</span>
-                  <span className="text-amber-700 dark:text-amber-400 font-medium truncate max-w-[180px]">
-                    {mosque.madrasaName || 'Community Quran Circle'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Facilities tags */}
-              <div className="mt-3 flex flex-wrap gap-1">
-                {mosque.facilities.slice(0, 3).map((f) => (
-                  <span
-                    key={f}
-                    className="text-[10px] px-2 py-0.5 rounded-md bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300"
-                  >
-                    {f}
-                  </span>
-                ))}
-                {mosque.facilities.length > 3 && (
-                  <span className="text-[10px] px-1.5 py-0.5 text-stone-400">
-                    +{mosque.facilities.length - 3} more
-                  </span>
+                <h3 className="text-lg font-serif font-bold text-stone-900 dark:text-stone-100">
+                  {mosque.name}
+                </h3>
+                {mosque.arabicName && (
+                  <p className="font-serif text-xs text-amber-700 dark:text-amber-400 mt-0.5" dir="rtl">
+                    {mosque.arabicName}
+                  </p>
                 )}
-              </div>
-            </div>
+                <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 line-clamp-2 leading-relaxed">
+                  {mosque.description}
+                </p>
 
-            <div className="mt-6 pt-3 border-t border-stone-100 dark:border-stone-800">
-              <Link to={`/mosques/${mosque.id}`}>
-                <Button variant="secondary" size="sm" className="w-full justify-center text-xs">
-                  Inspect Mosque & Schedule
-                </Button>
-              </Link>
-            </div>
-          </Card>
-        ))}
+                {/* Key metadata */}
+                <div className="mt-4 pt-3 border-t border-stone-100 dark:border-stone-800 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-stone-500">Imam Khatib:</span>
+                    <span className="font-semibold text-stone-800 dark:text-stone-200">
+                      {mosque.imam}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-stone-500">Capacity:</span>
+                    <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400">
+                      {(mosque.capacity || 0).toLocaleString()} worshippers
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-stone-500">Linked Madrasa:</span>
+                    <span className="text-amber-700 dark:text-amber-400 font-medium truncate max-w-[180px]">
+                      {mosque.madrasaName || 'Community Quran Circle'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Facilities tags */}
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {facilitiesList.slice(0, 3).map((f) => (
+                    <span
+                      key={f}
+                      className="text-[10px] px-2 py-0.5 rounded-md bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300"
+                    >
+                      {f}
+                    </span>
+                  ))}
+                  {facilitiesList.length > 3 && (
+                    <span className="text-[10px] px-1.5 py-0.5 text-stone-400">
+                      +{facilitiesList.length - 3} more
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-6 pt-3 border-t border-stone-100 dark:border-stone-800">
+                <Link to={`/mosques/${mosque.id}`}>
+                  <Button variant="secondary" size="sm" className="w-full justify-center text-xs">
+                    View Full Details & Prayer Schedule
+                  </Button>
+                </Link>
+              </div>
+            </Card>
+          );
+        })}
       </div>
 
       {filteredMosques.length === 0 && (

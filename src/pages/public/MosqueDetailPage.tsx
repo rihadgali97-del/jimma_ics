@@ -25,19 +25,44 @@ import { QuickJanazahModal } from '../../components/gateway/QuickJanazahModal';
 
 export const MosqueDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { mosques, madrasas, addToast } = useApp();
+  const { mosques = [], madrasas = [], addToast } = useApp();
   const { t } = useLanguage();
   const navigate = useNavigate();
 
   const [isJanazahModalOpen, setIsJanazahModalOpen] = useState(false);
 
-  const mosque = mosques.find((m) => m.id === id) || mosques[0];
-  const linkedMadrasa = madrasas.find((mad) => mad.id === mosque.madrasaId || mad.name === mosque.madrasaName);
+  const mosque =
+    (mosques || []).find((m) => m.id === id) ||
+    (mosques || [])[0] || {
+      id: 'mosque-1',
+      name: 'Grand Anwar Mosque of Jimma',
+      arabicName: 'جامع الأنوار الكبير بجيما',
+      district: 'Jimma Central',
+      address: 'Merkato Center, Main Street, Jimma',
+      imam: 'Sheikh Abdullah Ahmed Al-Jimmawi',
+      muadhin: 'Ustadh Bilal Abdi',
+      capacity: 5500,
+      establishedYear: 1940,
+      status: 'Active',
+      facilities: ['Main Prayer Hall', 'Women Gallery', 'Wudhu Stations (120 taps)', 'Library & Manuscript Archive'],
+      description: 'The historical spiritual epicenter of Jimma Zone, established in 1940.',
+      contactPhone: '+251 47 111 8290',
+    };
+
+  const linkedMadrasa = (madrasas || []).find(
+    (mad) => mad.id === mosque.madrasaId || mad.name === mosque.madrasaName || mad.mosqueId === mosque.id
+  );
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
     addToast('Link Copied', 'Mosque profile URL copied to your clipboard.', 'info');
   };
+
+  const facilitiesList = mosque.facilities || [];
+  const imageSrc =
+    mosque.image ||
+    mosque.imageUrl ||
+    'https://images.unsplash.com/photo-1542816417-0983c9c9ad53?auto=format&fit=crop&w=1200&q=80';
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
@@ -76,19 +101,21 @@ export const MosqueDetailPage: React.FC = () => {
       {/* Mosque Hero Banner */}
       <div className="bg-white dark:bg-stone-900 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-sm overflow-hidden grid grid-cols-1 lg:grid-cols-12">
         {/* Left Visual Image */}
-        <div className="lg:col-span-5 h-64 lg:h-auto relative bg-stone-900">
+        <div className="lg:col-span-5 h-64 lg:h-auto relative bg-stone-900 min-h-[260px]">
           <img
-            src={mosque.imageUrl}
+            src={imageSrc}
             alt={mosque.name}
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
           />
           <div className="absolute top-4 left-4">
-            <Badge variant="emerald">{mosque.status}</Badge>
+            <Badge variant="emerald">{mosque.status || 'Active'}</Badge>
           </div>
           <div className="absolute bottom-4 left-4 bg-stone-950/80 backdrop-blur-xs text-white text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5">
             <MapPin className="w-3.5 h-3.5 text-amber-400" />
-            <span>{mosque.address}, {mosque.district}</span>
+            <span>
+              {mosque.address || mosque.district}, {mosque.district}
+            </span>
           </div>
         </div>
 
@@ -103,6 +130,11 @@ export const MosqueDetailPage: React.FC = () => {
             <h1 className="text-2xl sm:text-4xl font-serif font-bold text-stone-900 dark:text-stone-100">
               {mosque.name}
             </h1>
+            {mosque.arabicName && (
+              <p className="font-serif text-amber-700 dark:text-amber-400 text-lg sm:text-xl font-medium mt-1" dir="rtl">
+                {mosque.arabicName}
+              </p>
+            )}
             <p className="text-stone-600 dark:text-stone-300 text-sm sm:text-base mt-2 leading-relaxed">
               {mosque.description}
             </p>
@@ -115,7 +147,7 @@ export const MosqueDetailPage: React.FC = () => {
                 Prayer Capacity
               </span>
               <span className="text-lg sm:text-xl font-bold text-emerald-700 dark:text-emerald-400 font-mono">
-                {mosque.capacity.toLocaleString()}
+                {(mosque.capacity || 0).toLocaleString()}
               </span>
             </div>
             <div>
@@ -131,7 +163,7 @@ export const MosqueDetailPage: React.FC = () => {
                 Friday Attendance
               </span>
               <span className="text-lg sm:text-xl font-bold text-amber-600 dark:text-amber-400 font-mono">
-                {(mosque.capacity * 0.95).toFixed(0)}
+                {Math.round((mosque.capacity || 1000) * 0.95).toLocaleString()}
               </span>
             </div>
           </div>
@@ -140,7 +172,7 @@ export const MosqueDetailPage: React.FC = () => {
 
       {/* 2-Column Content Layout: Key Sections */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left 8-cols: Religious Staff, Linked Madrasa & Prayer Times */}
+        {/* Left 8-cols: Religious Staff, Linked Madrasa & Facilities */}
         <div className="lg:col-span-8 space-y-8">
           {/* Religious Leadership (Imam & Mu'adhin) */}
           <Card className="space-y-4">
@@ -190,14 +222,16 @@ export const MosqueDetailPage: React.FC = () => {
             </div>
           </Card>
 
-          {/* Linked Madrasa (Step 5 of Demo Flow!) */}
+          {/* Linked Madrasa */}
           <Card className="space-y-4 border-amber-300/60 dark:border-amber-900/60">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-serif font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2">
                 <BookOpen className="w-5 h-5 text-amber-600" />
                 <span>Linked Quranic Madrasa & Hifz Center</span>
               </h3>
-              {linkedMadrasa && <Badge variant="gold">{linkedMadrasa.level}</Badge>}
+              {linkedMadrasa && (
+                <Badge variant="gold">{linkedMadrasa.accreditationStatus || 'Accredited'}</Badge>
+              )}
             </div>
 
             {linkedMadrasa ? (
@@ -228,7 +262,7 @@ export const MosqueDetailPage: React.FC = () => {
                   <div className="p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700">
                     <span className="text-stone-400 block text-[10px] uppercase">Hifz Graduates</span>
                     <span className="font-bold text-emerald-600 font-mono">
-                      {linkedMadrasa.hifzGraduatesCount}+ Huffaz
+                      {Math.round((linkedMadrasa.totalStudents || 100) * 0.22)}+ Huffaz
                     </span>
                   </div>
                   <div className="p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700">
@@ -240,25 +274,25 @@ export const MosqueDetailPage: React.FC = () => {
                   <div className="p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700">
                     <span className="text-stone-400 block text-[10px] uppercase">Shift</span>
                     <span className="font-semibold text-stone-800 dark:text-stone-200">
-                      {linkedMadrasa.shift}
+                      {(linkedMadrasa.shifts || []).join(', ') || 'Morning, Afternoon'}
                     </span>
                   </div>
                 </div>
               </div>
             ) : (
               <p className="text-xs text-stone-500">
-                Community Halaqat circles operate daily after Asr and Maghrib.
+                Community Halaqat circles operate daily after Asr and Maghrib under the supervision of the resident Imam.
               </p>
             )}
           </Card>
 
-          {/* Facilities & Amenities */}
+          {/* Facilities & Infrastructure */}
           <Card className="space-y-4">
             <h3 className="text-lg font-serif font-bold text-stone-900 dark:text-stone-100">
               Facilities & Infrastructure
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {mosque.facilities.map((fac) => (
+              {facilitiesList.map((fac) => (
                 <div
                   key={fac}
                   className="flex items-center gap-2 p-3 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-100 dark:border-stone-700/60 text-xs text-stone-700 dark:text-stone-300"
@@ -308,11 +342,11 @@ export const MosqueDetailPage: React.FC = () => {
             <div className="space-y-2.5 text-xs text-stone-600 dark:text-stone-300">
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>{mosque.contactPhone}</span>
+                <span>{mosque.contactPhone || '+251 47 111 8290'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>{mosque.address}, {mosque.district}</span>
+                <span>{mosque.address || mosque.district}, {mosque.district}</span>
               </div>
             </div>
 

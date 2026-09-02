@@ -27,6 +27,9 @@ import {
   SecurityAuditLog,
   CouncilResource,
   ZakatBeneficiaryDistribution,
+  AuditDirective,
+  AuditChecklistItem,
+  CryptographicLedgerBlock,
 } from '../types';
 import { mockMosques } from '../data/mockMosques';
 import { mockMadrasas } from '../data/mockMadrasas';
@@ -39,6 +42,7 @@ import { initialCouncilResources } from '../data/mockResources';
 import { mockDispatchHistory, initialGatewayStats } from '../data/mockGatewayData';
 import { initialStaffMembers, mockRoles, permissionCategories as defaultPermissionCategories, initialSecurityLogs } from '../data/mockStaffAndRoles';
 import { initialAttendanceSessions, initialStaffAttendance } from '../data/mockAttendance';
+import { mockAuditDirectives, mockAuditChecklist, mockLedgerBlocks } from '../data/mockAuditCompliance';
 
 export interface ToastNotification {
   id: string;
@@ -142,6 +146,18 @@ interface AppContextType {
   updateStaffAttendanceRecord: (id: string, updates: Partial<StaffAttendanceEntry>) => void;
   addStaffAttendanceRecord: (entry: Omit<StaffAttendanceEntry, 'id'>) => StaffAttendanceEntry;
 
+  // Independent Audit & Shariah Compliance
+  auditDirectives: AuditDirective[];
+  addAuditDirective: (directive: Omit<AuditDirective, 'id' | 'createdDate'>) => AuditDirective;
+  updateAuditDirective: (id: string, updates: Partial<AuditDirective>) => void;
+  resolveAuditDirective: (id: string, resolutionNote: string) => void;
+  escalateAuditDirective: (id: string) => void;
+  deleteAuditDirective: (id: string) => void;
+  auditChecklist: AuditChecklistItem[];
+  updateChecklistStatus: (id: string, status: AuditChecklistItem['status'], note?: string) => void;
+  ledgerBlocks: CryptographicLedgerBlock[];
+  runForensicReconciliation: () => Promise<{ verifiedBlocks: number; verifiedTxs: number; varianceETB: number; hash: string }>;
+
   // Toasts
   toasts: ToastNotification[];
   addToast: (title: string, message: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
@@ -177,6 +193,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [announcements] = useState<Announcement[]>(mockAnnouncements);
   const [documents] = useState<CouncilDocument[]>(mockDocuments);
   const [resources, setResources] = useState<CouncilResource[]>(initialCouncilResources);
+  const [auditDirectives, setAuditDirectives] = useState<AuditDirective[]>(mockAuditDirectives);
+  const [auditChecklist, setAuditChecklist] = useState<AuditChecklistItem[]>(mockAuditChecklist);
+  const [ledgerBlocks, setLedgerBlocks] = useState<CryptographicLedgerBlock[]>(mockLedgerBlocks);
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
 
@@ -212,7 +231,65 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const switchRole = (roleName: string) => {
-    const target = staffList.find((u) => u.role === roleName) || mockUsers.find((u) => u.role === roleName) || staffList[0];
+    const clean = (str: string) =>
+      (str || '')
+        .toLowerCase()
+        .replace(/&/g, 'and')
+        .replace(/[^a-z0-9]/g, '')
+        .trim();
+
+    const targetClean = clean(roleName);
+
+    // 1. Exact role string match
+    let target =
+      staffList.find((u) => u.role === roleName) ||
+      mockUsers.find((u) => u.role === roleName);
+
+    // 2. Cleaned / normalized match (e.g. '&' vs 'and', case insensitive)
+    if (!target) {
+      target =
+        staffList.find((u) => clean(u.role) === targetClean) ||
+        mockUsers.find((u) => clean(u.role) === targetClean);
+    }
+
+    // 3. Keyword / partial inclusion match
+    if (!target) {
+      target =
+        staffList.find((u) => {
+          const uClean = clean(u.role);
+          return uClean.includes(targetClean) || targetClean.includes(uClean);
+        }) ||
+        mockUsers.find((u) => {
+          const uClean = clean(u.role);
+          return uClean.includes(targetClean) || targetClean.includes(uClean);
+        });
+    }
+
+    // 4. Fallback for role category keywords
+    if (!target) {
+      if (targetClean.includes('zakat') || targetClean.includes('welfare') || targetClean.includes('inspector')) {
+        target = staffList.find((u) => clean(u.role).includes('zakat')) || mockUsers.find((u) => clean(u.role).includes('zakat'));
+      } else if (targetClean.includes('audit') || targetClean.includes('compliance')) {
+        target = staffList.find((u) => clean(u.role).includes('audit')) || mockUsers.find((u) => clean(u.role).includes('audit'));
+      } else if (targetClean.includes('media') || targetClean.includes('broadcast') || targetClean.includes('it')) {
+        target = staffList.find((u) => clean(u.role).includes('media') || clean(u.role).includes('it')) || mockUsers.find((u) => clean(u.role).includes('media'));
+      } else if (targetClean.includes('imam') || targetClean.includes('mosque')) {
+        target = staffList.find((u) => clean(u.role).includes('imam') || clean(u.role).includes('mosque')) || mockUsers.find((u) => clean(u.role).includes('imam'));
+      } else if (targetClean.includes('teacher') || targetClean.includes('muallim')) {
+        target = staffList.find((u) => clean(u.role).includes('teacher')) || mockUsers.find((u) => clean(u.role).includes('teacher'));
+      } else if (targetClean.includes('ulema') || targetClean.includes('fatwa')) {
+        target = staffList.find((u) => clean(u.role).includes('ulema')) || mockUsers.find((u) => clean(u.role).includes('ulema'));
+      } else if (targetClean.includes('edu')) {
+        target = staffList.find((u) => clean(u.role).includes('education')) || mockUsers.find((u) => clean(u.role).includes('education'));
+      } else if (targetClean.includes('fin')) {
+        target = staffList.find((u) => clean(u.role).includes('finance')) || mockUsers.find((u) => clean(u.role).includes('finance'));
+      }
+    }
+
+    if (!target) {
+      target = staffList[0];
+    }
+
     setCurrentUser(target);
     addToast('Role Switched (Demo)', `Now acting as ${target.name} (${target.role})`, 'info');
   };
@@ -994,6 +1071,146 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
+  // Independent Audit & Shariah Compliance Methods
+  const addAuditDirective = (directive: Omit<AuditDirective, 'id' | 'createdDate'>): AuditDirective => {
+    const newId = `AUD-2026-${String(auditDirectives.length + 1).padStart(3, '0')}`;
+    const today = new Date().toISOString().split('T')[0];
+    const newDirective: AuditDirective = {
+      ...directive,
+      id: newId,
+      createdDate: today,
+    };
+    setAuditDirectives((prev) => [newDirective, ...prev]);
+    addSecurityLog({
+      action: 'Create Audit Inquiry Flag',
+      actorName: currentUser.name,
+      actorEmail: currentUser.email,
+      actorRole: currentUser.role,
+      target: newId,
+      details: `Opened audit inquiry [${newDirective.severity}] for ${newDirective.targetEntity}: "${newDirective.title}"`,
+      category: 'Finance_Security',
+      status: 'Success',
+      ipAddress: '192.168.1.1',
+    });
+    addToast(
+      'Audit Directive Attached',
+      `Audit inquiry ${newId} assigned to ${newDirective.assignedAuditor}.`,
+      'info'
+    );
+    return newDirective;
+  };
+
+  const updateAuditDirective = (id: string, updates: Partial<AuditDirective>) => {
+    setAuditDirectives((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, ...updates } : d))
+    );
+    addToast('Audit Record Updated', 'Audit directive parameters updated successfully.', 'info');
+  };
+
+  const resolveAuditDirective = (id: string, resolutionNote: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    setAuditDirectives((prev) =>
+      prev.map((d) =>
+        d.id === id
+          ? {
+              ...d,
+              status: 'Resolved',
+              resolvedDate: today,
+              resolutionNote,
+            }
+          : d
+      )
+    );
+    addSecurityLog({
+      action: 'Resolve Audit Directive',
+      actorName: currentUser.name,
+      actorEmail: currentUser.email,
+      actorRole: currentUser.role,
+      target: id,
+      details: `Auditor cleared inquiry ${id}. Resolution Note: "${resolutionNote}"`,
+      category: 'Finance_Security',
+      status: 'Success',
+      ipAddress: '192.168.1.1',
+    });
+    addToast('Audit Finding Resolved', `Audit directive ${id} marked as resolved and sealed.`, 'success');
+  };
+
+  const escalateAuditDirective = (id: string) => {
+    setAuditDirectives((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, status: 'Escalated to Shura' } : d))
+    );
+    addSecurityLog({
+      action: 'Escalate Audit to Shura Council',
+      actorName: currentUser.name,
+      actorEmail: currentUser.email,
+      actorRole: currentUser.role,
+      target: id,
+      details: `Escalated compliance discrepancy ${id} to Executive Shura Council for emergency ruling.`,
+      category: 'Finance_Security',
+      status: 'Warning',
+      ipAddress: '192.168.1.1',
+    });
+    addToast(
+      'Escalated to Shura Council',
+      `Audit inquiry ${id} formally submitted to the Supreme Executive Shura.`,
+      'warning'
+    );
+  };
+
+  const deleteAuditDirective = (id: string) => {
+    setAuditDirectives((prev) => prev.filter((d) => d.id !== id));
+    addToast('Directive Removed', `Audit record ${id} removed from active review.`, 'info');
+  };
+
+  const updateChecklistStatus = (id: string, status: AuditChecklistItem['status'], note?: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    setAuditChecklist((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              status,
+              lastVerified: today,
+              verifiedBy: currentUser.name,
+              evidenceNote: note || item.evidenceNote,
+            }
+          : item
+      )
+    );
+    addToast('Governance Checklist Updated', `Compliance standard ${id} updated to [${status}].`, 'success');
+  };
+
+  const runForensicReconciliation = async (): Promise<{
+    verifiedBlocks: number;
+    verifiedTxs: number;
+    varianceETB: number;
+    hash: string;
+  }> => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const totalTxCount = transactions.length + 1378;
+        const digest = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+        addSecurityLog({
+          action: 'Cryptographic Ledger Reconciliation',
+          actorName: currentUser.name,
+          actorEmail: currentUser.email,
+          actorRole: currentUser.role,
+          target: 'Global General Ledger & Zakat Sub-Ledger',
+          details: `Reconciled ${ledgerBlocks.length} cryptographic blocks (${totalTxCount} transactions). Variance: 0.00 ETB. Digest SHA-256 match 100%.`,
+          category: 'Finance_Security',
+          status: 'Success',
+          ipAddress: '192.168.1.1',
+        });
+        resolve({
+          verifiedBlocks: ledgerBlocks.length,
+          verifiedTxs: totalTxCount,
+          varianceETB: 0.0,
+          hash: digest,
+        });
+      }, 1500);
+    });
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -1071,6 +1288,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         sendAbsenceSmsAlerts,
         updateStaffAttendanceRecord,
         addStaffAttendanceRecord,
+        auditDirectives,
+        addAuditDirective,
+        updateAuditDirective,
+        resolveAuditDirective,
+        escalateAuditDirective,
+        deleteAuditDirective,
+        auditChecklist,
+        updateChecklistStatus,
+        ledgerBlocks,
+        runForensicReconciliation,
         toasts,
         addToast,
         removeToast,

@@ -181,12 +181,12 @@ export const JimmaGisSvgMap: React.FC<JimmaGisSvgMapProps> = ({
     if (filterWaterWellOnly && !poi.hasWaterWell) return false;
     if (selectedWoredaId && poi.woredaId !== selectedWoredaId) return false;
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+      const q = (searchQuery || '').toLowerCase();
       const match =
-        poi.name.toLowerCase().includes(q) ||
-        poi.woredaName.toLowerCase().includes(q) ||
-        poi.leadPerson.toLowerCase().includes(q) ||
-        poi.address.toLowerCase().includes(q);
+        (poi.name || '').toLowerCase().includes(q) ||
+        (poi.woredaName || '').toLowerCase().includes(q) ||
+        (poi.leadPerson || '').toLowerCase().includes(q) ||
+        (poi.address || '').toLowerCase().includes(q);
       if (!match) return false;
     }
     return true;

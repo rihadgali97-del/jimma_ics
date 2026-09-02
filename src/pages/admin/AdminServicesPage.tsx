@@ -26,11 +26,12 @@ export const AdminServicesPage: React.FC = () => {
   const [assignedOfficer, setAssignedOfficer] = useState('');
 
   const filtered = serviceRequests.filter((r) => {
+    const s = (searchTerm || '').toLowerCase();
     const matchSearch =
-      r.applicantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.trackingNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.serviceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.district.toLowerCase().includes(searchTerm.toLowerCase());
+      (r.applicantName || '').toLowerCase().includes(s) ||
+      (r.trackingNo || '').toLowerCase().includes(s) ||
+      (r.serviceName || '').toLowerCase().includes(s) ||
+      (r.district || '').toLowerCase().includes(s);
     const matchStatus = selectedStatus === 'All' || r.status === selectedStatus;
     return matchSearch && matchStatus;
   });

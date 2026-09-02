@@ -44,6 +44,7 @@ import { AdminStaffAndRolesPage } from './pages/admin/AdminStaffAndRolesPage';
 import { AdminAttendancePage } from './pages/admin/AdminAttendancePage';
 import { AdminResourcesPage } from './pages/admin/AdminResourcesPage';
 import { AdminDonationsAndZakatPage } from './pages/admin/AdminDonationsAndZakatPage';
+import { AdminAuditPage } from './pages/admin/AdminAuditPage';
 
 export default function App() {
   return (
@@ -87,6 +88,8 @@ export default function App() {
                 <Route path="finance" element={<AdminFinancePage />} />
                 <Route path="finance/donations" element={<AdminDonationsAndZakatPage />} />
                 <Route path="finance/approvals" element={<AdminFinancePage />} />
+                <Route path="audit" element={<AdminAuditPage />} />
+                <Route path="compliance" element={<AdminAuditPage />} />
                 <Route path="donations" element={<AdminDonationsAndZakatPage />} />
                 <Route path="zakat" element={<AdminDonationsAndZakatPage />} />
                 <Route path="services" element={<AdminServicesPage />} />

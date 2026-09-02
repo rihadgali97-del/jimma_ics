@@ -269,7 +269,7 @@ export const DistrictInspectionDrawer: React.FC<DistrictInspectionDrawerProps> =
           Notable Landmarks & Waqf Lands
         </div>
         <div className="space-y-1.5">
-          {woreda!.notableFeatures.map((f, i) => (
+          {(woreda?.notableFeatures || []).map((f, i) => (
             <div
               key={i}
               className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300"
@@ -282,13 +282,13 @@ export const DistrictInspectionDrawer: React.FC<DistrictInspectionDrawerProps> =
       </div>
 
       {/* Registered Key Institutions in this Woreda */}
-      {woredaPois.length > 0 && (
+      {(woredaPois || []).length > 0 && (
         <div className="mb-5">
           <div className="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2">
-            Mapped Facilities ({woredaPois.length})
+            Mapped Facilities ({(woredaPois || []).length})
           </div>
           <div className="space-y-2">
-            {woredaPois.map((p) => (
+            {(woredaPois || []).map((p) => (
               <button
                 key={p.id}
                 onClick={() => onSelectPoi(p)}

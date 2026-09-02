@@ -3,6 +3,7 @@ export type Language = 'en' | 'om' | 'ar';
 export type UserRole =
   | 'Super Admin'
   | 'Council Director'
+  | 'IT & Media Officer'
   | 'Finance Officer'
   | 'Education Officer'
   | 'Mosque Officer'
@@ -17,12 +18,12 @@ export type StaffStatus = 'Active' | 'On Leave' | 'Suspended' | 'Pending Invitat
 
 export type StaffDepartment =
   | 'Executive Secretariat'
+  | 'IT & Media Communications'
   | 'Shariah & Fatwa Board'
   | 'Education Directorate'
   | 'Finance & Endowment'
   | 'Mosque & Waqf Affairs'
-  | 'Social Services & Zakat'
-  | 'IT & Media Communications';
+  | 'Social Services & Zakat';
 
 export interface User {
   id: string;
@@ -256,15 +257,22 @@ export interface Donation {
 
 export interface ZakatBeneficiaryDistribution {
   id: string;
-  asnafCategory: 'Al-Fuqara (The Destitute)' | 'Al-Masakeen (The Needy)' | 'Amilina Alayha (Zakat Collectors)' | 'Al-Mu’allafatu Qulubuhum' | 'Fir-Riqab (Emergency Freedom)' | 'Al-Gharimeen (Insolvent Debtors)' | 'Fi Sabilillah (In Allah’s Cause / Dawah)' | 'Ibnus-Sabeel (Stranded Travellers)';
-  arabicName: string;
-  woredaDistrict: string;
-  beneficiaryCount: number;
-  totalDisbursedETB: number;
-  lastDisbursalDate: string;
-  distributionChannel: string;
-  leadOfficer: string;
+  asnafCategory: string;
+  arabicName?: string;
+  woredaDistrict?: string;
+  beneficiaryCount?: number;
+  totalDisbursedETB?: number;
+  lastDisbursalDate?: string;
+  distributionChannel?: string;
+  leadOfficer?: string;
   notes: string;
+  beneficiaryName?: string;
+  category?: string;
+  amountETB?: number;
+  district?: string;
+  verificationStatus?: 'Verified' | 'Pending' | 'Disbursed' | 'Under Review' | string;
+  disbursementDate?: string;
+  approvedBy?: string;
 }
 
 export interface Fund {
@@ -574,4 +582,66 @@ export interface CouncilResource {
   tags: string[];
   previewContent?: ResourcePreviewContent;
 }
+
+// Independent Audit & Shariah Compliance Types
+export type AuditCategory =
+  | 'Shariah_Compliance'
+  | 'Financial_Integrity'
+  | 'CSO_Regulatory'
+  | 'Waqf_Endowment'
+  | 'IT_Security'
+  | 'Procurement_VAT';
+
+export type AuditSeverity = 'Low' | 'Medium' | 'High' | 'Critical';
+
+export type AuditDirectiveStatus = 'Open' | 'Under Investigation' | 'Resolved' | 'Escalated to Shura';
+
+export interface AuditDirective {
+  id: string;
+  title: string;
+  category: AuditCategory;
+  severity: AuditSeverity;
+  status: AuditDirectiveStatus;
+  targetEntity: string;
+  department: StaffDepartment;
+  findings: string;
+  requiredAction: string;
+  assignedAuditor: string;
+  dueDate: string;
+  createdDate: string;
+  resolvedDate?: string;
+  resolutionNote?: string;
+  evidenceReference?: string;
+  voucherId?: string;
+  amountETB?: number;
+}
+
+export type CompliancePillar = 'Shariah' | 'Financial' | 'Regulatory' | 'Governance';
+
+export interface AuditChecklistItem {
+  id: string;
+  title: string;
+  pillar: CompliancePillar;
+  description: string;
+  status: 'Compliant' | 'Pending Review' | 'Action Required' | 'Exempt';
+  lastVerified: string;
+  verifiedBy: string;
+  standardReference: string;
+  evidenceNote?: string;
+  frequency: 'Continuous' | 'Monthly' | 'Quarterly' | 'Annual';
+}
+
+export interface CryptographicLedgerBlock {
+  blockHeight: number;
+  timestamp: string;
+  previousHash: string;
+  blockHash: string;
+  merkleRoot: string;
+  transactionsCount: number;
+  totalValueETB: number;
+  status: 'Verified' | 'Sealed' | 'Validating';
+  validator: string;
+  blockType: 'Zakat_Disbursements' | 'Mosque_Endowment' | 'Expense_Vouchers' | 'Donor_Receipts' | 'General_Ledger';
+}
+
 

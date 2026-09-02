@@ -134,7 +134,7 @@ export const AdminAttendancePage: React.FC = () => {
     const rate = total > 0 ? Math.round(((present + late * 0.5) / total) * 1000) / 10 : 0;
 
     const dynamicSession: DailyAttendanceSession = {
-      id: `session-${selectedDate.replace(/-/g, '')}-${selectedMadrasaId}-${selectedClass.replace(/\s+/g, '-').toLowerCase()}`,
+      id: `session-${(selectedDate || '').replace(/-/g, '')}-${selectedMadrasaId || 'mad-1'}-${(selectedClass || '').replace(/\s+/g, '-').toLowerCase()}`,
       date: selectedDate,
       hijriDate: selectedHijri,
       madrasaId: selectedMadrasaId,
@@ -221,7 +221,7 @@ export const AdminAttendancePage: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `daily-attendance-${currentSession.madrasaName.replace(/\s+/g, '-').toLowerCase()}-${selectedDate}.csv`;
+    link.download = `daily-attendance-${(currentSession.madrasaName || 'madrasa').replace(/\s+/g, '-').toLowerCase()}-${selectedDate}.csv`;
     link.click();
     URL.revokeObjectURL(url);
     addToast('CSV Downloaded', 'Daily attendance sheet exported.', 'success');

@@ -728,7 +728,7 @@ export const AdminStaffAndRolesPage: React.FC = () => {
                     <div className="flex items-center justify-between text-stone-600 dark:text-stone-300">
                       <span className="text-stone-400">Permissions:</span>
                       <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
-                        {staff.permissions.length} active
+                        {(staff.permissions || []).length} active
                       </span>
                     </div>
                   </div>
@@ -739,11 +739,21 @@ export const AdminStaffAndRolesPage: React.FC = () => {
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => switchRole(staff.role)}
+                        icon={<LogIn className="w-3.5 h-3.5 text-amber-500" />}
+                        className="text-[11px] px-2 py-1"
+                        title="Impersonate & Switch Workspace"
+                      >
+                        Switch
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => setSelectedStaffForBadge(staff)}
-                        icon={<IdCard className="w-3.5 h-3.5 text-amber-500" />}
+                        icon={<IdCard className="w-3.5 h-3.5 text-blue-500" />}
                         className="text-[11px] px-2 py-1"
                       >
-                        ID Badge
+                        Badge
                       </Button>
                       <Button
                         variant="outline"
@@ -875,7 +885,7 @@ export const AdminStaffAndRolesPage: React.FC = () => {
                       <div className="flex items-center justify-between">
                         <span className="text-stone-500">Granted Capabilities:</span>
                         <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
-                          {role.permissions.length} Permissions
+                          {(role.permissions || []).length} Permissions
                         </span>
                       </div>
                     </div>
@@ -986,7 +996,7 @@ export const AdminStaffAndRolesPage: React.FC = () => {
                         </td>
 
                         {rolesList.map((role) => {
-                          const hasPerm = role.permissions.includes(perm.id);
+                          const hasPerm = (role.permissions || []).includes(perm.id);
                           return (
                             <td key={role.id} className="py-2.5 px-3 text-center">
                               {hasPerm ? (

@@ -36,10 +36,11 @@ export const AdminMadrasasPage: React.FC = () => {
   const districts = ['All', ...Array.from(new Set(madrasas.map((m) => m.district)))];
 
   const filtered = madrasas.filter((m) => {
+    const s = (searchTerm || '').toLowerCase();
     const matchSearch =
-      m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.district.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.headTeacher.toLowerCase().includes(searchTerm.toLowerCase());
+      (m.name || '').toLowerCase().includes(s) ||
+      (m.district || '').toLowerCase().includes(s) ||
+      (m.headTeacher || '').toLowerCase().includes(s);
     const matchDistrict = selectedDistrict === 'All' || m.district === selectedDistrict;
     return matchSearch && matchDistrict;
   });

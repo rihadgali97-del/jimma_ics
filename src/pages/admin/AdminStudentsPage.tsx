@@ -46,10 +46,11 @@ export const AdminStudentsPage: React.FC = () => {
   const levels = ['All', 'Nazira (Recitation)', 'Intermediate Tahfeez', 'Full Hifz Revision (Khatm)'];
 
   const filtered = students.filter((s) => {
+    const term = (searchTerm || '').toLowerCase();
     const matchSearch =
-      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.guardianName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.madrasaName.toLowerCase().includes(searchTerm.toLowerCase());
+      (s.name || '').toLowerCase().includes(term) ||
+      (s.guardianName || '').toLowerCase().includes(term) ||
+      (s.madrasaName || '').toLowerCase().includes(term);
     const matchMad = selectedMadrasa === 'All' || s.madrasaName === selectedMadrasa;
     const matchLev = selectedLevel === 'All' || s.level === selectedLevel;
     return matchSearch && matchMad && matchLev;

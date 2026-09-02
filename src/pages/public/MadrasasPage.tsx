@@ -8,27 +8,28 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 
 export const MadrasasPage: React.FC = () => {
-  const { madrasas } = useApp();
+  const { madrasas = [] } = useApp();
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('All');
   const [selectedLevel, setSelectedLevel] = useState('All');
 
-  const districts = ['All', ...Array.from(new Set(madrasas.map((m) => m.district)))];
-  const levels = ['All', 'Primary Madrasa', 'Intermediate Tahfeez', 'Advanced Shari\'ah College'];
+  const districts = ['All', ...Array.from(new Set((madrasas || []).map((m) => m.district).filter(Boolean)))];
+  const levels = ['All', 'Level 1 (Foundation)', 'Level 2 (Tahfeez)', 'Level 3 (Alimiyyah)', 'Hifz Intensive'];
 
-  const filtered = madrasas.filter((m) => {
+  const filtered = (madrasas || []).filter((m) => {
+    const mLevels = m.levels || [];
     const matchSearch =
-      m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.district.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.headTeacher.toLowerCase().includes(searchTerm.toLowerCase());
+      (m.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (m.district || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (m.headTeacher || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchDistrict = selectedDistrict === 'All' || m.district === selectedDistrict;
-    const matchLevel = selectedLevel === 'All' || m.level === selectedLevel;
+    const matchLevel = selectedLevel === 'All' || mLevels.some((l) => l.toLowerCase().includes(selectedLevel.toLowerCase()));
     return matchSearch && matchDistrict && matchLevel;
   });
 
-  const totalEnrolled = madrasas.reduce((acc, m) => acc + m.totalStudents, 0);
-  const totalGrads = madrasas.reduce((acc, m) => acc + m.hifzGraduatesCount, 0);
+  const totalEnrolled = (madrasas || []).reduce((acc, m) => acc + (m.totalStudents || 0), 0);
+  const totalTeachers = (madrasas || []).reduce((acc, m) => acc + (m.totalTeachers || 0), 0);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
@@ -57,9 +58,9 @@ export const MadrasasPage: React.FC = () => {
           </div>
           <div className="h-6 w-px bg-amber-300 dark:bg-amber-800" />
           <div>
-            <span className="text-stone-500 block text-[10px] uppercase">Huffaz Produced</span>
+            <span className="text-stone-500 block text-[10px] uppercase">Certified Asatidhah</span>
             <span className="font-bold text-emerald-600 font-mono text-sm">
-              {totalGrads}+ Graduates
+              {totalTeachers}+ Faculty
             </span>
           </div>
         </div>
@@ -107,69 +108,91 @@ export const MadrasasPage: React.FC = () => {
 
       {/* Madrasa Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.map((madrasa) => (
-          <Card key={madrasa.id} hoverEffect className="flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <Badge variant="gold">{madrasa.level}</Badge>
-                <span className="text-xs text-stone-400 flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-amber-500" />
-                  {madrasa.district}
-                </span>
-              </div>
-
-              <h3 className="font-serif font-bold text-lg text-stone-900 dark:text-stone-100">
-                {madrasa.name}
-              </h3>
-              <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 line-clamp-2 leading-relaxed">
-                {madrasa.description}
-              </p>
-
-              {/* Stats & Head Teacher */}
-              <div className="mt-4 pt-3 border-t border-stone-100 dark:border-stone-800 space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-stone-500">Head Teacher:</span>
-                  <span className="font-semibold text-stone-800 dark:text-stone-200 truncate max-w-[180px]">
-                    {madrasa.headTeacher}
+        {filtered.map((madrasa) => {
+          const progs = madrasa.programs || [];
+          const levs = madrasa.levels || [];
+          const shiftsList = madrasa.shifts || [];
+          return (
+            <Card key={madrasa.id} hoverEffect className="flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Badge variant="gold">{madrasa.accreditationStatus || 'Accredited'}</Badge>
+                  <span className="text-xs text-stone-400 flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-amber-500" />
+                    {madrasa.district}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-stone-500">Students Enrolled:</span>
-                  <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">
-                    {madrasa.totalStudents} (Boys: {madrasa.maleStudents}, Girls: {madrasa.femaleStudents})
-                  </span>
+
+                <h3 className="font-serif font-bold text-lg text-stone-900 dark:text-stone-100">
+                  {madrasa.name}
+                </h3>
+                {madrasa.arabicName && (
+                  <p className="font-serif text-xs text-amber-700 dark:text-amber-400 mt-0.5" dir="rtl">
+                    {madrasa.arabicName}
+                  </p>
+                )}
+                <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 line-clamp-2 leading-relaxed">
+                  {madrasa.description}
+                </p>
+
+                {/* Stats & Head Teacher */}
+                <div className="mt-4 pt-3 border-t border-stone-100 dark:border-stone-800 space-y-2 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-stone-500">Head Teacher:</span>
+                    <span className="font-semibold text-stone-800 dark:text-stone-200 truncate max-w-[180px]">
+                      {madrasa.headTeacher}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-stone-500">Students Enrolled:</span>
+                    <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                      {(madrasa.totalStudents || 0).toLocaleString()} Students ({madrasa.totalTeachers || 0} Teachers)
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-stone-500">Operating Shifts:</span>
+                    <span className="text-stone-800 dark:text-stone-200 font-medium">
+                      {shiftsList.join(', ') || 'Morning, Afternoon'}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-stone-500">Shift & Timings:</span>
-                  <span className="text-stone-800 dark:text-stone-200 font-medium">
-                    {madrasa.shift}
-                  </span>
+
+                {/* Programs / Levels Pills */}
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {(progs.length > 0 ? progs : levs).slice(0, 3).map((sub) => (
+                    <span
+                      key={sub}
+                      className="text-[10px] px-2 py-0.5 rounded-md bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300"
+                    >
+                      {sub}
+                    </span>
+                  ))}
                 </div>
               </div>
 
-              {/* Subjects Pills */}
-              <div className="mt-3 flex flex-wrap gap-1">
-                {madrasa.curriculum.slice(0, 3).map((sub) => (
-                  <span
-                    key={sub}
-                    className="text-[10px] px-2 py-0.5 rounded-md bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300"
-                  >
-                    {sub}
-                  </span>
-                ))}
+              <div className="mt-6 pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center gap-2">
+                <Link to={`/madrasas/${madrasa.id}`} className="w-full">
+                  <Button variant="secondary" size="sm" className="w-full justify-center text-xs">
+                    Inspect Madrasa
+                  </Button>
+                </Link>
               </div>
-            </div>
-
-            <div className="mt-6 pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center gap-2">
-              <Link to={`/madrasas/${madrasa.id}`} className="w-full">
-                <Button variant="secondary" size="sm" className="w-full justify-center text-xs">
-                  Inspect Madrasa
-                </Button>
-              </Link>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          );
+        })}
       </div>
+
+      {filtered.length === 0 && (
+        <div className="p-12 text-center bg-white dark:bg-stone-900 rounded-3xl border border-stone-200 dark:border-stone-800 space-y-3">
+          <BookOpen className="w-10 h-10 text-stone-300 mx-auto" />
+          <h3 className="text-lg font-bold text-stone-800 dark:text-stone-200">
+            No madrasas found
+          </h3>
+          <p className="text-xs text-stone-500">
+            Try adjusting your search criteria or changing the selected district filter.
+          </p>
+        </div>
+      )}
     </div>
   );
 };

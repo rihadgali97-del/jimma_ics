@@ -37,10 +37,11 @@ export const AdminMosquesPage: React.FC = () => {
   const districts = ['All', ...Array.from(new Set(mosques.map((m) => m.district)))];
 
   const filtered = mosques.filter((m) => {
+    const s = (searchTerm || '').toLowerCase();
     const matchSearch =
-      m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.district.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.imam.toLowerCase().includes(searchTerm.toLowerCase());
+      (m.name || '').toLowerCase().includes(s) ||
+      (m.district || '').toLowerCase().includes(s) ||
+      (m.imam || '').toLowerCase().includes(s);
     const matchDistrict = selectedDistrict === 'All' || m.district === selectedDistrict;
     return matchSearch && matchDistrict;
   });

@@ -42,10 +42,11 @@ export const AdminFinancePage: React.FC = () => {
   const fundNames = ['All', ...funds.map((f) => f.name)];
 
   const filtered = transactions.filter((tx) => {
+    const s = (searchTerm || '').toLowerCase();
     const matchSearch =
-      tx.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tx.referenceNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tx.category.toLowerCase().includes(searchTerm.toLowerCase());
+      (tx.description || '').toLowerCase().includes(s) ||
+      (tx.referenceNo || '').toLowerCase().includes(s) ||
+      (tx.category || '').toLowerCase().includes(s);
     const matchFund = selectedFund === 'All' || tx.fundName === selectedFund;
     const matchType = selectedType === 'All' || tx.type === selectedType;
     return matchSearch && matchFund && matchType;

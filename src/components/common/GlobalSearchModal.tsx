@@ -43,30 +43,30 @@ export const GlobalSearchModal: React.FC = () => {
 
   if (!isSearchOpen) return null;
 
-  const q = query.toLowerCase().trim();
+  const q = (query || '').toLowerCase().trim();
 
   const matchedMosques = mosques.filter(
-    (m) => m.name.toLowerCase().includes(q) || m.district.toLowerCase().includes(q) || m.imam.toLowerCase().includes(q)
+    (m) => (m.name || '').toLowerCase().includes(q) || (m.district || '').toLowerCase().includes(q) || (m.imam || '').toLowerCase().includes(q)
   ).slice(0, 3);
 
   const matchedMadrasas = madrasas.filter(
-    (m) => m.name.toLowerCase().includes(q) || m.district.toLowerCase().includes(q) || m.headTeacher.toLowerCase().includes(q)
+    (m) => (m.name || '').toLowerCase().includes(q) || (m.district || '').toLowerCase().includes(q) || (m.headTeacher || '').toLowerCase().includes(q)
   ).slice(0, 3);
 
   const matchedUlema = ulema.filter(
-    (u) => u.name.toLowerCase().includes(q) || u.specializations.some((s) => s.toLowerCase().includes(q)) || u.district.toLowerCase().includes(q)
+    (u) => (u.name || '').toLowerCase().includes(q) || (u.specializations || []).some((s) => (s || '').toLowerCase().includes(q)) || (u.district || '').toLowerCase().includes(q)
   ).slice(0, 3);
 
   const matchedServices = publicServices.filter(
-    (s) => s.title.toLowerCase().includes(q) || s.shortDesc.toLowerCase().includes(q)
+    (s) => (s.title || '').toLowerCase().includes(q) || (s.shortDesc || '').toLowerCase().includes(q)
   ).slice(0, 3);
 
   const matchedEvents = events.filter(
-    (e) => e.title.toLowerCase().includes(q) || e.speaker.toLowerCase().includes(q) || e.category.toLowerCase().includes(q)
+    (e) => (e.title || '').toLowerCase().includes(q) || (e.speaker || '').toLowerCase().includes(q) || (e.category || '').toLowerCase().includes(q)
   ).slice(0, 2);
 
   const matchedDocs = documents.filter(
-    (d) => d.title.toLowerCase().includes(q) || d.category.toLowerCase().includes(q)
+    (d) => (d.title || '').toLowerCase().includes(q) || (d.category || '').toLowerCase().includes(q)
   ).slice(0, 2);
 
   const hasResults =

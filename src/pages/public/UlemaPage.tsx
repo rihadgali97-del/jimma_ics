@@ -7,21 +7,30 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 
 export const UlemaPage: React.FC = () => {
-  const { ulema } = useApp();
+  const { ulema = [] } = useApp();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpec, setSelectedSpec] = useState('All');
   const [selectedDistrict, setSelectedDistrict] = useState('All');
 
-  const specializations = ['All', 'Fiqh & Usul al-Fiqh', 'Hadith Sciences', 'Tafsir & Quranic Sciences', 'Zakat & Islamic Finance', 'Arabic Linguistics'];
-  const districts = ['All', ...Array.from(new Set(ulema.map((u) => u.district)))];
+  const specializations = [
+    'All',
+    'Fiqh & Usul al-Fiqh',
+    'Hadith Sciences',
+    'Tafsir & Quranic Sciences',
+    'Zakat & Islamic Finance',
+    'Arabic Linguistics',
+  ];
+  const districts = ['All', ...Array.from(new Set((ulema || []).map((u) => u.district).filter(Boolean)))];
 
-  const filtered = ulema.filter((u) => {
+  const filtered = (ulema || []).filter((u) => {
+    const specs = u.specializations || [];
     const matchSearch =
-      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.specializations.some((s) => s.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchSpec = selectedSpec === 'All' || u.specializations.includes(selectedSpec);
+      (u.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      specs.some((s) => s.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchSpec =
+      selectedSpec === 'All' || specs.some((s) => s.toLowerCase().includes(selectedSpec.toLowerCase()));
     const matchDistrict = selectedDistrict === 'All' || u.district === selectedDistrict;
     return matchSearch && matchSpec && matchDistrict;
   });
@@ -95,68 +104,91 @@ export const UlemaPage: React.FC = () => {
 
       {/* Scholars Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.map((scholar) => (
-          <Card key={scholar.id} hoverEffect className="flex flex-col justify-between">
-            <div>
-              <div className="flex items-start justify-between gap-2 mb-3">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-900 text-amber-300 flex items-center justify-center font-serif text-lg font-bold border border-emerald-700">
-                  {scholar.name.split(' ')[1]?.charAt(0) || 'S'}
-                </div>
-                <div className="text-right">
-                  <Badge variant="blue">{scholar.councilRole}</Badge>
-                  <span className="text-[11px] text-stone-400 block mt-1">
-                    {scholar.district}
-                  </span>
-                </div>
-              </div>
-
-              <h3 className="font-serif font-bold text-lg text-stone-900 dark:text-stone-100">
-                {scholar.name}
-              </h3>
-              <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mt-0.5">
-                {scholar.title}
-              </p>
-              <p className="text-xs text-stone-500 dark:text-stone-400 mt-2 leading-relaxed line-clamp-2">
-                {scholar.bio}
-              </p>
-
-              {/* Specializations & Sanad */}
-              <div className="mt-4 pt-3 border-t border-stone-100 dark:border-stone-800 space-y-2 text-xs">
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-stone-400 block">
-                    Specializations
-                  </span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {scholar.specializations.map((s) => (
-                      <span
-                        key={s}
-                        className="text-[10px] px-2 py-0.5 rounded-md bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300"
-                      >
-                        {s}
-                      </span>
-                    ))}
+        {filtered.map((scholar) => {
+          const specs = scholar.specializations || [];
+          const quals = scholar.qualifications || [];
+          return (
+            <Card key={scholar.id} hoverEffect className="flex flex-col justify-between">
+              <div>
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-900 text-amber-300 flex items-center justify-center font-serif text-lg font-bold border border-emerald-700">
+                    {scholar.name.split(' ')[1]?.charAt(0) || 'S'}
+                  </div>
+                  <div className="text-right">
+                    <Badge variant="blue">{scholar.status || 'Active'}</Badge>
+                    <span className="text-[11px] text-stone-400 block mt-1">
+                      {scholar.district}
+                    </span>
                   </div>
                 </div>
 
-                <div className="pt-1">
-                  <span className="text-stone-500">Academic Sanad / Alma Mater:</span>
-                  <span className="font-medium text-stone-800 dark:text-stone-200 block truncate">
-                    {scholar.qualification}
-                  </span>
+                <h3 className="font-serif font-bold text-lg text-stone-900 dark:text-stone-100">
+                  {scholar.name}
+                </h3>
+                {scholar.arabicName && (
+                  <p className="font-serif text-amber-700 dark:text-amber-400 text-xs mt-0.5" dir="rtl">
+                    {scholar.arabicName}
+                  </p>
+                )}
+                <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mt-1">
+                  {scholar.title}
+                </p>
+                <p className="text-xs text-stone-500 dark:text-stone-400 mt-2 leading-relaxed line-clamp-2">
+                  {scholar.biography}
+                </p>
+
+                {/* Specializations & Sanad */}
+                <div className="mt-4 pt-3 border-t border-stone-100 dark:border-stone-800 space-y-2 text-xs">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-stone-400 block">
+                      Specializations
+                    </span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {specs.slice(0, 3).map((s) => (
+                        <span
+                          key={s}
+                          className="text-[10px] px-2 py-0.5 rounded-md bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300"
+                        >
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {quals.length > 0 && (
+                    <div className="pt-1">
+                      <span className="text-stone-500">Academic Sanad / Alma Mater:</span>
+                      <span className="font-medium text-stone-800 dark:text-stone-200 block truncate">
+                        {quals[0]}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
 
-            <div className="mt-6 pt-3 border-t border-stone-100 dark:border-stone-800">
-              <Link to={`/ulema/${scholar.id}`}>
-                <Button variant="secondary" size="sm" className="w-full justify-center text-xs">
-                  View Full Scholar Dossier
-                </Button>
-              </Link>
-            </div>
-          </Card>
-        ))}
+              <div className="mt-6 pt-3 border-t border-stone-100 dark:border-stone-800">
+                <Link to={`/ulema/${scholar.id}`}>
+                  <Button variant="secondary" size="sm" className="w-full justify-center text-xs">
+                    View Full Scholar Dossier
+                  </Button>
+                </Link>
+              </div>
+            </Card>
+          );
+        })}
       </div>
+
+      {filtered.length === 0 && (
+        <div className="p-12 text-center bg-white dark:bg-stone-900 rounded-3xl border border-stone-200 dark:border-stone-800 space-y-3">
+          <Users className="w-10 h-10 text-stone-300 mx-auto" />
+          <h3 className="text-lg font-bold text-stone-800 dark:text-stone-200">
+            No scholars match your criteria
+          </h3>
+          <p className="text-xs text-stone-500">
+            Try adjusting your search terms or filter selections.
+          </p>
+        </div>
+      )}
     </div>
   );
 };

@@ -37,12 +37,12 @@ export const AttendanceSheetTable: React.FC<AttendanceSheetTableProps> = ({
 
   const filteredEntries = entries.filter((entry) => {
     // Search filter
-    const term = searchTerm.toLowerCase();
+    const term = (searchTerm || '').toLowerCase();
     const matchSearch =
-      entry.studentName.toLowerCase().includes(term) ||
+      (entry.studentName || '').toLowerCase().includes(term) ||
       (entry.arabicName && entry.arabicName.includes(term)) ||
-      entry.guardianName.toLowerCase().includes(term) ||
-      entry.guardianPhone.includes(term);
+      (entry.guardianName || '').toLowerCase().includes(term) ||
+      (entry.guardianPhone || '').includes(term);
 
     if (!matchSearch) return false;
 

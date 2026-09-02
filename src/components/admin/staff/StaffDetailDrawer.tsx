@@ -273,7 +273,7 @@ export const StaffDetailDrawer: React.FC<StaffDetailDrawerProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-mono font-bold text-stone-500 uppercase tracking-wider">
-                Effective Operational Permissions ({staff.permissions.length})
+                Effective Operational Permissions ({(staff.permissions || []).length})
               </h4>
               <Badge variant="gold" className="text-[10px]">
                 Base: {staff.role}
@@ -283,7 +283,7 @@ export const StaffDetailDrawer: React.FC<StaffDetailDrawerProps> = ({
             <div className="space-y-3">
               {permissionCategories.map((cat) => {
                 const userPermsInCat = cat.permissions.filter((p) =>
-                  staff.permissions.includes(p.id)
+                  (staff.permissions || []).includes(p.id)
                 );
                 if (userPermsInCat.length === 0) return null;
 

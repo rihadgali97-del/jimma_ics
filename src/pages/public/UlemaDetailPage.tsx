@@ -12,6 +12,8 @@ import {
   ArrowLeft,
   CheckCircle2,
   Calendar,
+  Mail,
+  Shield,
 } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -22,7 +24,31 @@ export const UlemaDetailPage: React.FC = () => {
   const { ulema } = useApp();
   const navigate = useNavigate();
 
-  const scholar = ulema.find((u) => u.id === id) || ulema[0];
+  const scholar = (ulema && ulema.find((u) => u.id === id)) || (ulema && ulema[0]) || {
+    id: 'ulema-1',
+    name: 'Sheikh Abdullah Ahmed Al-Jimmawi',
+    arabicName: 'فضيلة الشيخ عبد الله أحمد الجماوي',
+    title: 'Senior Sheikh & Chief Mufti',
+    specializations: ['Tafseer & Quranic Sciences', 'Fiqh & Fatwa Advisory', 'Hadith Sciences'],
+    district: 'Jimma Central',
+    assignedMosqueName: 'Grand Anwar Mosque of Jimma',
+    qualifications: [
+      'Master of Shari’ah (Islamic University of Madinah)',
+      'Traditional Ijazah in Ten Qira’at of Quran',
+    ],
+    languages: ['Afaan Oromoo', 'Arabic', 'Amharic'],
+    areasOfService: ['Friday Khutbah (Grand Anwar)', 'Fatwa & Shariah Guidance Council', 'Zakat Assessment'],
+    biography: 'A revered spiritual and intellectual leader across Oromia and Ethiopia.',
+    contactPhone: '+251 47 111 8290',
+    email: 'sheikh.abdullah@jimmaislamiccouncil.demo',
+    status: 'Active',
+    yearsOfDawah: 38,
+  };
+
+  const specializationsList = scholar.specializations || [];
+  const qualificationsList = scholar.qualifications || [];
+  const areasOfServiceList = scholar.areasOfService || [];
+  const languagesList = scholar.languages || [];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
@@ -54,17 +80,22 @@ export const UlemaDetailPage: React.FC = () => {
 
           <div className="space-y-2 flex-1">
             <div className="flex items-center gap-2">
-              <Badge variant="blue">{scholar.councilRole}</Badge>
+              <Badge variant="blue">{scholar.status || 'Active Scholar'}</Badge>
               <span className="text-xs text-stone-400 font-mono">ID: {scholar.id}</span>
             </div>
             <h1 className="text-2xl sm:text-4xl font-serif font-bold text-stone-900 dark:text-stone-100">
               {scholar.name}
             </h1>
+            {scholar.arabicName && (
+              <p className="font-serif text-amber-700 dark:text-amber-400 text-lg sm:text-xl font-medium" dir="rtl">
+                {scholar.arabicName}
+              </p>
+            )}
             <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
               {scholar.title} • {scholar.district}
             </p>
             <p className="text-stone-600 dark:text-stone-300 text-sm sm:text-base leading-relaxed pt-1">
-              {scholar.bio}
+              {scholar.biography}
             </p>
           </div>
         </div>
@@ -73,19 +104,19 @@ export const UlemaDetailPage: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
           <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/80 dark:border-stone-700">
             <span className="text-stone-400 uppercase font-bold text-[10px] block">
-              Qualifications & Alma Mater
+              Assigned Mosque / Institution
             </span>
             <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm block mt-1">
-              {scholar.qualification}
+              {scholar.assignedMosqueName || 'Supreme Council Central Mosque'}
             </span>
           </div>
 
           <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/80 dark:border-stone-700">
             <span className="text-stone-400 uppercase font-bold text-[10px] block">
-              Council Office Hours
+              Years of Dawah & Service
             </span>
-            <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm block mt-1">
-              {scholar.officeHours}
+            <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm block mt-1 font-mono">
+              {scholar.yearsOfDawah || 25}+ Years
             </span>
           </div>
 
@@ -93,23 +124,23 @@ export const UlemaDetailPage: React.FC = () => {
             <span className="text-stone-400 uppercase font-bold text-[10px] block">
               Contact Phone & Desk
             </span>
-            <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm block mt-1">
+            <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm block mt-1 font-mono">
               {scholar.contactPhone}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Specializations & Published Treatises */}
+      {/* Specializations & Qualifications */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 space-y-8">
           <Card className="space-y-4">
             <h3 className="text-lg font-serif font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2">
               <Award className="w-5 h-5 text-amber-600" />
-              <span>Disciplines of Expertise & Shari'ah Certification</span>
+              <span>Disciplines of Expertise & Shari'ah Specializations</span>
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {scholar.specializations.map((spec) => (
+              {specializationsList.map((spec) => (
                 <div
                   key={spec}
                   className="p-3.5 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-100 dark:border-stone-700 text-xs font-semibold text-stone-800 dark:text-stone-200 flex items-center gap-2"
@@ -124,26 +155,59 @@ export const UlemaDetailPage: React.FC = () => {
           <Card className="space-y-4">
             <h3 className="text-lg font-serif font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-blue-600" />
-              <span>Scholarly Treatises & Council Fatwa Archives</span>
+              <span>Academic Sanad, Alma Mater & Qualifications</span>
             </h3>
             <div className="space-y-3">
-              {scholar.publications.map((pub) => (
+              {qualificationsList.map((qual, idx) => (
                 <div
-                  key={pub}
+                  key={idx}
                   className="p-3.5 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-100 dark:border-stone-700/60 text-xs flex items-center justify-between"
                 >
                   <span className="font-medium text-stone-800 dark:text-stone-200">
-                    {pub}
+                    {qual}
                   </span>
-                  <Badge variant="slate">Archived</Badge>
+                  <Badge variant="slate">Verified Ijazah</Badge>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card className="space-y-4">
+            <h3 className="text-lg font-serif font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-emerald-600" />
+              <span>Council Service Portfolios & Commitments</span>
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {areasOfServiceList.map((area, idx) => (
+                <div
+                  key={idx}
+                  className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-100 dark:border-stone-700/60 text-xs text-stone-700 dark:text-stone-300 font-medium"
+                >
+                  • {area}
                 </div>
               ))}
             </div>
           </Card>
         </div>
 
-        {/* Right side: Weekly Halaqah schedule */}
+        {/* Right side: Languages & Weekly Public Halaqah schedule */}
         <div className="lg:col-span-4 space-y-6">
+          <Card className="space-y-3">
+            <h4 className="font-serif font-bold text-base text-stone-900 dark:text-stone-100">
+              Languages of Instruction
+            </h4>
+            <div className="flex flex-wrap gap-1.5">
+              {languagesList.map((lang) => (
+                <span
+                  key={lang}
+                  className="px-2.5 py-1 text-xs rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 font-medium"
+                >
+                  {lang}
+                </span>
+              ))}
+            </div>
+          </Card>
+
           <Card className="space-y-4">
             <h4 className="font-serif font-bold text-base text-stone-900 dark:text-stone-100 flex items-center gap-2">
               <Calendar className="w-4 h-4 text-emerald-600" />
@@ -157,7 +221,7 @@ export const UlemaDetailPage: React.FC = () => {
                 Every Saturday after Asr Prayer
               </div>
               <div className="text-[11px] text-stone-500">
-                Jimma Grand Anwar Central Mosque • Open to all students of knowledge
+                {scholar.assignedMosqueName || 'Grand Anwar Central Mosque'} • Open to all students of knowledge
               </div>
             </div>
           </Card>

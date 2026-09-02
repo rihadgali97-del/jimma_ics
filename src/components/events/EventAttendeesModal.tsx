@@ -66,11 +66,12 @@ export const EventAttendeesModal: React.FC<EventAttendeesModalProps> = ({
   const eventAttendees = eventRegistrations.filter((r) => r.eventId === event.id);
 
   const filteredAttendees = eventAttendees.filter((r) => {
+    const s = (searchTerm || '').toLowerCase();
     const matchesSearch =
-      r.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.phone.includes(searchTerm) ||
-      r.passNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (r.organizationOrMadrasa && r.organizationOrMadrasa.toLowerCase().includes(searchTerm.toLowerCase()));
+      (r.fullName || '').toLowerCase().includes(s) ||
+      (r.phone || '').includes(searchTerm || '') ||
+      (r.passNumber || '').toLowerCase().includes(s) ||
+      ((r.organizationOrMadrasa || '').toLowerCase().includes(s));
     const matchesStatus = statusFilter === 'All' || r.status === statusFilter;
     return matchesSearch && matchesStatus;
   });

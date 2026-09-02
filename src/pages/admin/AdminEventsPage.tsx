@@ -62,11 +62,12 @@ export const AdminEventsPage: React.FC = () => {
   ];
 
   const filteredEvents = events.filter((e) => {
+    const s = (searchTerm || '').toLowerCase();
     const matchesSearch =
-      e.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (e.title || '').toLowerCase().includes(s) ||
       (e.arabicTitle && e.arabicTitle.includes(searchTerm)) ||
-      e.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.speaker.toLowerCase().includes(searchTerm.toLowerCase());
+      (e.location || '').toLowerCase().includes(s) ||
+      (e.speaker || '').toLowerCase().includes(s);
 
     const matchesCat = selectedCategory === 'All' || e.category === selectedCategory;
     const matchesStatus = selectedStatus === 'All' || e.status === selectedStatus;

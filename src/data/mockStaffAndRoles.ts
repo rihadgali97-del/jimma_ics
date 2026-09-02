@@ -127,6 +127,28 @@ export const mockRoles: RoleDefinition[] = [
     updatedAt: '2026-08-15',
   },
   {
+    id: 'role-it-media-officer',
+    name: 'IT & Media Officer',
+    arabicName: 'مسؤول تقنية المعلومات والإعلام',
+    department: 'IT & Media Communications',
+    description: 'Manages council IT infrastructure, Ethio Telecom SMS gateway, Telegram channels, digital gate pass issuance, livestream broadcasts, and press releases.',
+    isSystemRole: true,
+    privilegeLevel: 'High',
+    defaultDashboard: '/admin',
+    color: '#0284C7', // Sky / Blue
+    assignedUsersCount: 2,
+    permissions: [
+      'mosque.view', 'madrasa.view', 'student.manage',
+      'finance.view', 'finance.export_audit',
+      'gateway.view_logs', 'gateway.send_janazah', 'gateway.mass_broadcast', 'gateway.topup',
+      'events.schedule', 'events.gate_checkin',
+      'users.view', 'audit.view_logs',
+      'documents.publish'
+    ],
+    createdAt: '2025-01-01',
+    updatedAt: '2026-08-28',
+  },
+  {
     id: 'role-council-director',
     name: 'Council Director',
     arabicName: 'مدير المجلس الأعلى',
@@ -395,6 +417,32 @@ export const initialStaffMembers: User[] = [
       'users.view', 'audit.view_logs'
     ],
     notes: 'Presides over Council Shura meetings, regional government liaison, and major waqf capital projects.',
+  },
+  {
+    id: 'user-it-media-officer',
+    name: 'Eng. Dawud Al-Mukhtar',
+    arabicName: 'م. داود المختار',
+    email: 'it.media@jimmaislamiccouncil.demo',
+    role: 'IT & Media Officer',
+    title: 'Lead Systems & Media Communications Officer',
+    department: 'IT & Media Communications',
+    phone: '+251 91 222 7788',
+    district: 'Jimma Central',
+    status: 'Active',
+    joinedDate: '2024-01-10',
+    lastLogin: 'Today at 08:30 AM',
+    twoFactorEnabled: true,
+    accessLevel: 'Level 2 (IT Infrastructure & Media Broadcast)',
+    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',
+    permissions: [
+      'mosque.view', 'madrasa.view', 'student.manage',
+      'finance.view', 'finance.export_audit',
+      'gateway.view_logs', 'gateway.send_janazah', 'gateway.mass_broadcast', 'gateway.topup',
+      'events.schedule', 'events.gate_checkin',
+      'users.view', 'audit.view_logs',
+      'documents.publish'
+    ],
+    notes: 'Oversees IT portal servers, SMS & Telegram broadcast systems, Ethio Telecom API integration, and digital council communications.',
   },
   {
     id: 'user-finance',

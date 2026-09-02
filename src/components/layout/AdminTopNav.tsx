@@ -14,6 +14,17 @@ import {
   CheckCircle2,
   PanelLeftClose,
   PanelLeftOpen,
+  UserCheck,
+  ChevronDown,
+  ShieldCheck,
+  HeartHandshake,
+  WalletCards,
+  GraduationCap,
+  BookOpen,
+  Building,
+  Layers,
+  Radio,
+  Lock,
 } from 'lucide-react';
 
 interface AdminTopNavProps {
@@ -27,13 +38,22 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({
   isCollapsed = false,
   onToggleCollapse,
 }) => {
-  const { setIsSearchOpen, expenseApprovals, serviceRequests } = useApp();
+  const {
+    currentUser,
+    switchRole,
+    allUsers,
+    setIsSearchOpen,
+    expenseApprovals,
+    serviceRequests,
+    addToast,
+  } = useApp();
   const { theme, toggleTheme } = useTheme();
   const { t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
 
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   // Generate breadcrumbs from path
   const pathParts = location.pathname.split('/').filter(Boolean);
@@ -196,6 +216,69 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({
         >
           {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
         </button>
+
+        {/* User Role Switcher Dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setUserMenuOpen(!userMenuOpen)}
+            className="flex items-center gap-2 p-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200/80 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 border border-stone-200 dark:border-stone-700 transition-colors cursor-pointer"
+            title={`Active: ${currentUser.name} (${currentUser.role})`}
+          >
+            <div className="w-6 h-6 rounded-lg bg-emerald-800 text-amber-300 flex items-center justify-center font-bold text-xs shrink-0">
+              {currentUser.name.charAt(0)}
+            </div>
+            <div className="hidden xl:block text-left text-xs leading-tight min-w-0 max-w-[120px]">
+              <div className="font-bold truncate">{currentUser.name}</div>
+              <div className="text-[10px] text-amber-600 dark:text-amber-400 truncate">{currentUser.role}</div>
+            </div>
+            <ChevronDown className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+          </button>
+
+          {userMenuOpen && (
+            <div className="absolute right-0 mt-2 w-72 max-h-[80vh] overflow-y-auto rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95">
+              <div className="px-3 py-2 border-b border-stone-100 dark:border-stone-800 flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-800 to-emerald-950 text-amber-300 flex items-center justify-center font-bold text-sm">
+                  {currentUser.name.charAt(0)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-xs text-stone-900 dark:text-stone-100 truncate">{currentUser.name}</div>
+                  <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium truncate">{currentUser.role}</div>
+                  <div className="text-[9px] text-stone-400 truncate">{currentUser.email}</div>
+                </div>
+              </div>
+
+              <div className="px-3 py-1.5 text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+                Switch Active Role / User
+              </div>
+
+              <div className="space-y-1">
+                {allUsers.map((u) => {
+                  const isActive = currentUser.id === u.id || currentUser.role === u.role;
+                  return (
+                    <button
+                      key={u.id}
+                      onClick={() => {
+                        switchRole(u.role);
+                        setUserMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-2.5 py-2 rounded-xl text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                        isActive
+                          ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 font-bold'
+                          : 'text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800'
+                      }`}
+                    >
+                      <div className="min-w-0 pr-2">
+                        <div className="font-semibold truncate">{u.name}</div>
+                        <div className="text-[10px] text-stone-400 truncate">{u.role}</div>
+                      </div>
+                      {isActive && <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

@@ -48,12 +48,12 @@ export const StaffAttendanceTab: React.FC = () => {
   ];
 
   const filteredStaff = staffAttendanceList.filter((s) => {
-    const term = searchTerm.toLowerCase();
+    const term = (searchTerm || '').toLowerCase();
     const matchSearch =
-      s.staffName.toLowerCase().includes(term) ||
+      (s.staffName || '').toLowerCase().includes(term) ||
       (s.arabicName && s.arabicName.includes(term)) ||
-      s.role.toLowerCase().includes(term) ||
-      s.location.toLowerCase().includes(term);
+      (s.role || '').toLowerCase().includes(term) ||
+      (s.location || '').toLowerCase().includes(term);
 
     const matchDept = deptFilter === 'All' || s.department === deptFilter;
     const matchStatus = statusFilter === 'All' || s.status === statusFilter;

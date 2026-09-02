@@ -25,12 +25,14 @@ export const AdminDocumentsPage: React.FC = () => {
   const [category, setCategory] = useState<'Audit Report' | 'Legal Charter' | 'Curriculum Guide' | 'Fatwa Decree' | 'Annual Statement'>('Audit Report');
   const [description, setDescription] = useState('');
 
-  const filtered = documents.filter(
-    (d) =>
-      d.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      d.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      d.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = documents.filter((d) => {
+    const s = (searchTerm || '').toLowerCase();
+    return (
+      (d.title || '').toLowerCase().includes(s) ||
+      (d.category || '').toLowerCase().includes(s) ||
+      (d.description || '').toLowerCase().includes(s)
+    );
+  });
 
   const handleUploadSubmit = (e: React.FormEvent) => {
     e.preventDefault();

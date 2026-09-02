@@ -26,6 +26,7 @@ import {
   ChevronRight,
   PanelLeftClose,
   PanelLeftOpen,
+  Scale,
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -84,6 +85,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           badgeVariant: 'amber' as const,
         },
         { label: 'Donations & Zakat Logs', path: '/admin/finance/donations', icon: <HeartHandshake className="w-4 h-4" /> },
+        { label: 'Audit & Compliance', path: '/admin/audit', icon: <Scale className="w-4 h-4 text-amber-500" /> },
       ],
     },
     {

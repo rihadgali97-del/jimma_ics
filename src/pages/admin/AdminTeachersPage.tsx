@@ -29,12 +29,14 @@ export const AdminTeachersPage: React.FC = () => {
   const [experienceYears, setExperienceYears] = useState(8);
   const [salaryETB, setSalaryETB] = useState(8500);
 
-  const filtered = teachers.filter(
-    (t) =>
-      t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.madrasaName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.specialization.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = teachers.filter((t) => {
+    const s = (searchTerm || '').toLowerCase();
+    return (
+      (t.name || '').toLowerCase().includes(s) ||
+      (t.madrasaName || '').toLowerCase().includes(s) ||
+      (t.specialization || '').toLowerCase().includes(s)
+    );
+  });
 
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
