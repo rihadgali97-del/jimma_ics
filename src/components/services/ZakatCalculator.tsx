@@ -22,16 +22,45 @@ import {
   ChevronDown,
   ChevronUp,
   Smartphone,
+  ArrowRight,
+  History,
+  Save,
+  BookmarkCheck,
+  LogIn,
+  Lock,
 } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { Modal } from '../ui/Modal';
 import { IslamicPattern } from '../common/IslamicPattern';
 import { ZakatFiqhGuideModal } from './ZakatFiqhGuideModal';
 import { ZakatAssessmentModal } from './ZakatAssessmentModal';
 import { ZakatDisburseModal } from './ZakatDisburseModal';
+import { ZakatHistory } from './ZakatHistory';
+import { useApp } from '../../context/AppContext';
+import { ZakatCalculationRecord } from '../../types';
 
-export const ZakatCalculator: React.FC = () => {
+export interface ZakatCalculatorProps {
+  onProceedToPaymentGateway?: (amountETB: number) => void;
+  gatewayButtonText?: string;
+  initialTab?: 'calculator' | 'history';
+}
+
+export const ZakatCalculator: React.FC<ZakatCalculatorProps> = ({
+  onProceedToPaymentGateway,
+  gatewayButtonText,
+  initialTab,
+}) => {
+  const { currentUser, isLoggedIn, addZakatCalculation, zakatCalculations } = useApp();
+
+  // Primary Tab (Active Calculator vs Zakat History)
+  const [mainTab, setMainTab] = useState<'calculator' | 'history'>(initialTab || 'calculator');
+
+  // Save Modal state
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [assessmentTitleInput, setAssessmentTitleInput] = useState('');
+
   // Modal states
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isAssessmentOpen, setIsAssessmentOpen] = useState(false);
@@ -252,55 +281,232 @@ export const ZakatCalculator: React.FC = () => {
   // Percentage of Nisab achieved
   const nisabPercentage = Math.min(100, Math.round((netZakatableWealth / (nisabThresholdETB || 1)) * 100));
 
+  // User calculations count
+  const userCalculationsCount = useMemo(() => {
+    if (!isLoggedIn) return 0;
+    return zakatCalculations.filter((calc) => {
+      return (
+        calc.userEmail.toLowerCase() === currentUser.email.toLowerCase() ||
+        calc.userName.toLowerCase() === currentUser.name.toLowerCase() ||
+        (currentUser.role === 'Super Admin' && calc.userEmail.includes('admin@jimma'))
+      );
+    }).length;
+  }, [zakatCalculations, currentUser, isLoggedIn]);
+
+  const handleSaveCalculation = () => {
+    if (!isLoggedIn) {
+      setMainTab('history');
+      return;
+    }
+    const defaultTitle = `${calendarType === 'hijri' ? '1448 AH' : '2026'} Zakat Assessment (${new Date().toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })})`;
+    const title = assessmentTitleInput.trim() || defaultTitle;
+
+    addZakatCalculation({
+      userId: currentUser.id,
+      userName: currentUser.name,
+      userEmail: currentUser.email,
+      title,
+      date: new Date().toISOString().split('T')[0],
+      hijriYear: calendarType === 'hijri' ? '1448 AH' : '1447 AH',
+      nisabStandard,
+      nisabThresholdETB,
+      totalAssetsETB: totalGrossMonetaryAssets + totalCropMarketValue,
+      totalLiabilitiesETB: totalDeductions,
+      netZakatableWealthETB: netZakatableWealth,
+      isEligible: isNisabMet || isCropNisabMet,
+      totalZakatObligationETB: grandTotalZakatETB,
+      status: 'Obligation Pending',
+      assetBreakdown: {
+        cashAndLiquidityETB: cashTotal,
+        goldAndSilverETB: metalsTotal,
+        businessStockETB: businessTotal,
+        investmentsETB: investmentsTotal,
+        agricultureUshrETB: agricultureUshrDue,
+        livestockETB: livestockSummary.totalLivestockCash,
+      },
+      inputSnapshot: {
+        cashInHand,
+        bankDeposits,
+        digitalWallets,
+        foreignCurrencyETB,
+        goodDebtsReceivable,
+        gold24kGrams,
+        gold21kGrams,
+        gold18kGrams,
+        silverGrams,
+        stockInventoryValue,
+        rawMaterialsValue,
+        goodsInTransit,
+        tradeReceivables,
+        sharesLiquidValue,
+        retainedRentalIncome,
+        accessiblePension,
+        harvestQuintals,
+        cropType,
+        cropPricePerQuintal,
+        irrigationType,
+        cattleCount,
+        sheepGoatCount,
+        shortTermDebts,
+        livingExpensesImmediate: immediateLivingExpenses,
+      },
+      notes: `Assessed on ${calendarType} calendar. Nisab: ${nisabThresholdETB.toLocaleString()} ETB. Gross: ${(totalGrossMonetaryAssets + totalCropMarketValue).toLocaleString()} ETB.`,
+    });
+
+    setIsSaveModalOpen(false);
+    setAssessmentTitleInput('');
+  };
+
+  const handleLoadCalculation = (snapshot: NonNullable<ZakatCalculationRecord['inputSnapshot']>) => {
+    setCashInHand(snapshot.cashInHand || 0);
+    setBankDeposits(snapshot.bankDeposits || 0);
+    setDigitalWallets(snapshot.digitalWallets || 0);
+    setForeignCurrencyETB(snapshot.foreignCurrencyETB || 0);
+    setGoodDebtsReceivable(snapshot.goodDebtsReceivable || 0);
+    setGold24kGrams(snapshot.gold24kGrams || 0);
+    setGold21kGrams(snapshot.gold21kGrams || 0);
+    setGold18kGrams(snapshot.gold18kGrams || 0);
+    setSilverGrams(snapshot.silverGrams || 0);
+    setStockInventoryValue(snapshot.stockInventoryValue || 0);
+    setRawMaterialsValue(snapshot.rawMaterialsValue || 0);
+    setGoodsInTransit(snapshot.goodsInTransit || 0);
+    setTradeReceivables(snapshot.tradeReceivables || 0);
+    setSharesLiquidValue(snapshot.sharesLiquidValue || 0);
+    setRetainedRentalIncome(snapshot.retainedRentalIncome || 0);
+    setAccessiblePension(snapshot.accessiblePension || 0);
+    setHarvestQuintals(snapshot.harvestQuintals || 0);
+    if (snapshot.cropType) setCropType(snapshot.cropType);
+    if (snapshot.cropPricePerQuintal) setCropPricePerQuintal(snapshot.cropPricePerQuintal);
+    if (snapshot.irrigationType) setIrrigationType(snapshot.irrigationType);
+    if (snapshot.cattleCount !== undefined) setCattleCount(snapshot.cattleCount);
+    if (snapshot.sheepGoatCount !== undefined) setSheepGoatCount(snapshot.sheepGoatCount);
+    setShortTermDebts(snapshot.shortTermDebts || 0);
+    setImmediateLivingExpenses(snapshot.livingExpensesImmediate || 0);
+    setMainTab('calculator');
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
-      {/* Top Banner / Introduction */}
-      <div className="bg-gradient-to-br from-emerald-950 via-stone-900 to-emerald-950 rounded-3xl p-6 sm:p-8 border border-emerald-800/70 shadow-2xl text-stone-100 relative overflow-hidden">
-        <IslamicPattern opacity={0.06} />
+      {/* Primary Sub-Navigation Bar: Active Calculator vs Zakat History */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-2 bg-stone-100 dark:bg-stone-800/90 rounded-2xl border border-stone-200 dark:border-stone-700">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setMainTab('calculator')}
+            className={`flex-1 sm:flex-initial py-2.5 px-5 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              mainTab === 'calculator'
+                ? 'bg-emerald-800 text-white shadow-sm'
+                : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
+            }`}
+          >
+            <Scale className="w-4 h-4" />
+            <span>Active Zakat Calculator</span>
+          </button>
 
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-          <div className="lg:col-span-8 space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 rounded-full bg-emerald-900/80 border border-emerald-600 text-amber-300 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-                <Scale className="w-3.5 h-3.5" />
-                Jimma Majlis Shari'ah Compliance
+          <button
+            type="button"
+            onClick={() => setMainTab('history')}
+            className={`flex-1 sm:flex-initial py-2.5 px-5 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              mainTab === 'history'
+                ? 'bg-emerald-800 text-white shadow-sm'
+                : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
+            }`}
+          >
+            <History className="w-4 h-4" />
+            <span>Zakat History & Tracking</span>
+            {isLoggedIn && userCalculationsCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-400 text-stone-950">
+                {userCalculationsCount}
               </span>
-              <Badge variant="gold" className="text-xs">
-                Updated for 1447 / 1448 AH
-              </Badge>
-            </div>
+            )}
+          </button>
+        </div>
 
-            <h2 className="text-2xl sm:text-4xl font-serif font-bold text-white tracking-tight">
-              Jimma Zone Digital Zakat & Ushr Calculator
-            </h2>
-
-            <p className="text-xs sm:text-sm text-stone-300 max-w-2xl leading-relaxed">
-              Calculate your exact Zakat obligations across cash holdings, bank deposits, gold & silver,
-              commercial business stock, investments, and Jimma coffee agricultural harvests (Ushr) under classical Islamic jurisprudence.
-            </p>
-
-            {/* Quick action buttons */}
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <Button
-                variant="gold"
-                size="sm"
-                icon={<BookOpen className="w-4 h-4" />}
-                onClick={() => setIsGuideOpen(true)}
-                className="text-xs font-bold"
-              >
-                Read Shari'ah Guidelines & 8 Asnaf
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                icon={<Receipt className="w-4 h-4 text-emerald-400" />}
-                onClick={() => setIsAssessmentOpen(true)}
-                className="text-xs text-stone-200 border-stone-700 hover:bg-stone-800"
-              >
-                Official Assessment Statement
-              </Button>
-            </div>
+        {mainTab === 'calculator' && (
+          <div className="flex items-center justify-end gap-2 text-xs">
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<Save className="w-3.5 h-3.5 text-emerald-600" />}
+              onClick={() => {
+                if (!isLoggedIn) {
+                  setMainTab('history');
+                } else {
+                  setIsSaveModalOpen(true);
+                }
+              }}
+              className="text-xs"
+            >
+              Save Assessment to History
+            </Button>
           </div>
+        )}
+      </div>
+
+      {mainTab === 'history' ? (
+        <ZakatHistory
+          onLoadCalculation={handleLoadCalculation}
+          onProceedToPaymentGateway={onProceedToPaymentGateway}
+          onOpenCalculatorTab={() => setMainTab('calculator')}
+        />
+      ) : (
+        <>
+          {/* Top Banner / Introduction */}
+          <div className="bg-gradient-to-br from-emerald-950 via-stone-900 to-emerald-950 rounded-3xl p-6 sm:p-8 border border-emerald-800/70 shadow-2xl text-stone-100 relative overflow-hidden">
+            <IslamicPattern opacity={0.06} />
+
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+              <div className="lg:col-span-8 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-3 py-1 rounded-full bg-emerald-900/80 border border-emerald-600 text-amber-300 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <Scale className="w-3.5 h-3.5" />
+                    Jimma Majlis Shari'ah Compliance
+                  </span>
+                  <Badge variant="gold" className="text-xs">
+                    Updated for 1447 / 1448 AH
+                  </Badge>
+                </div>
+
+                <h2 className="text-2xl sm:text-4xl font-serif font-bold text-white tracking-tight">
+                  Jimma Zone Digital Zakat & Ushr Calculator
+                </h2>
+
+                <p className="text-xs sm:text-sm text-stone-300 max-w-2xl leading-relaxed">
+                  Calculate your exact Zakat obligations across cash holdings, bank deposits, gold & silver,
+                  commercial business stock, investments, and Jimma coffee agricultural harvests (Ushr) under classical Islamic jurisprudence.
+                </p>
+
+                {/* Quick action buttons */}
+                <div className="flex flex-wrap items-center gap-3 pt-2">
+                  <Button
+                    variant="gold"
+                    size="sm"
+                    icon={<BookOpen className="w-4 h-4" />}
+                    onClick={() => setIsGuideOpen(true)}
+                    className="text-xs font-bold"
+                  >
+                    Read Shari'ah Guidelines & 8 Asnaf
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    icon={<Receipt className="w-4 h-4 text-emerald-400" />}
+                    onClick={() => setIsAssessmentOpen(true)}
+                    className="text-xs text-stone-200 border-stone-700 hover:bg-stone-800"
+                  >
+                    Official Assessment Statement
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    icon={<History className="w-4 h-4 text-amber-400" />}
+                    onClick={() => setMainTab('history')}
+                    className="text-xs text-stone-200 border-stone-700 hover:bg-stone-800"
+                  >
+                    View Zakat History ({userCalculationsCount})
+                  </Button>
+                </div>
+              </div>
 
           {/* Quick Scenario Preset Selector */}
           <div className="lg:col-span-4 bg-stone-900/80 backdrop-blur-md p-4 rounded-2xl border border-stone-700/60 space-y-3">
@@ -1236,15 +1442,42 @@ export const ZakatCalculator: React.FC = () => {
 
             {/* Action Buttons */}
             <div className="space-y-2.5 pt-1">
-              <Button
-                variant="gold"
-                size="md"
-                className="w-full text-xs font-bold"
-                icon={<HeartHandshake className="w-4 h-4" />}
-                onClick={() => setIsDisburseOpen(true)}
-              >
-                Disburse Zakat Now (Telebirr / CBE)
-              </Button>
+              {onProceedToPaymentGateway ? (
+                <>
+                  <Button
+                    variant="gold"
+                    size="lg"
+                    className="w-full text-xs sm:text-sm font-bold shadow-md justify-center py-3 bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-600 hover:to-amber-800 text-stone-950 cursor-pointer"
+                    icon={<ArrowRight className="w-4 h-4" />}
+                    onClick={() => {
+                      const finalAmount = grandTotalZakatETB > 0 ? grandTotalZakatETB : 2500;
+                      onProceedToPaymentGateway(finalAmount);
+                    }}
+                  >
+                    {gatewayButtonText || `Pay via Donation Gateway (${(grandTotalZakatETB > 0 ? grandTotalZakatETB : 2500).toLocaleString()} ETB) →`}
+                  </Button>
+
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="w-full text-xs font-medium"
+                    icon={<HeartHandshake className="w-3.5 h-3.5" />}
+                    onClick={() => setIsDisburseOpen(true)}
+                  >
+                    Quick In-App Modal Payment
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="gold"
+                  size="md"
+                  className="w-full text-xs font-bold"
+                  icon={<HeartHandshake className="w-4 h-4" />}
+                  onClick={() => setIsDisburseOpen(true)}
+                >
+                  Disburse Zakat Now (Telebirr / CBE)
+                </Button>
+              )}
 
               <Button
                 variant="outline"
@@ -1255,6 +1488,32 @@ export const ZakatCalculator: React.FC = () => {
               >
                 View & Print Official Assessment
               </Button>
+
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full text-xs font-semibold bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100"
+                icon={<Save className="w-3.5 h-3.5" />}
+                onClick={() => {
+                  if (!isLoggedIn) {
+                    setMainTab('history');
+                  } else {
+                    setIsSaveModalOpen(true);
+                  }
+                }}
+              >
+                Save Assessment to History
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-xs text-stone-600 dark:text-stone-300 hover:text-emerald-700 dark:hover:text-emerald-400"
+                icon={<History className="w-3.5 h-3.5" />}
+                onClick={() => setMainTab('history')}
+              >
+                View Zakat History ({userCalculationsCount})
+              </Button>
             </div>
 
             <p className="text-[10px] text-center text-stone-400">
@@ -1263,6 +1522,8 @@ export const ZakatCalculator: React.FC = () => {
           </Card>
         </div>
       </div>
+        </>
+      )}
 
       {/* Modals */}
       <ZakatFiqhGuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
@@ -1309,6 +1570,73 @@ export const ZakatCalculator: React.FC = () => {
         onClose={() => setIsDisburseOpen(false)}
         zakatAmountETB={grandTotalZakatETB}
       />
+
+      {/* Save Assessment to History Modal */}
+      <Modal
+        isOpen={isSaveModalOpen}
+        onClose={() => setIsSaveModalOpen(false)}
+        title="Save Zakat Assessment to Your Account"
+        size="md"
+      >
+        <div className="space-y-5">
+          <p className="text-xs text-stone-600 dark:text-stone-300 leading-relaxed">
+            Record this calculation under your profile (<span className="font-semibold text-emerald-700 dark:text-emerald-400">{currentUser.name}</span>). You will be able to review past assessments, restore them to this calculator, print official statements, and track discharge status.
+          </p>
+
+          <div className="p-3.5 rounded-xl bg-stone-50 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700 space-y-2 text-xs">
+            <div className="flex justify-between">
+              <span className="text-stone-500">Gross Zakatable Assets:</span>
+              <span className="font-bold font-mono">{(totalGrossMonetaryAssets + totalCropMarketValue).toLocaleString()} ETB</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-stone-500">Net Zakatable Pool:</span>
+              <span className="font-bold font-mono text-emerald-700 dark:text-emerald-400">{netZakatableWealth.toLocaleString()} ETB</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-stone-500">Nisab Threshold ({nisabStandard}):</span>
+              <span className="font-bold font-mono">{nisabThresholdETB.toLocaleString()} ETB</span>
+            </div>
+            <div className="flex justify-between pt-1 border-t border-stone-200 dark:border-stone-700">
+              <span className="font-bold text-stone-900 dark:text-stone-100">Calculated Obligation:</span>
+              <span className="font-bold font-mono text-amber-600 dark:text-amber-400 text-sm">{grandTotalZakatETB.toLocaleString()} ETB</span>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-stone-700 dark:text-stone-300 block">
+              Assessment Title / Year Label
+            </label>
+            <input
+              type="text"
+              value={assessmentTitleInput}
+              onChange={(e) => setAssessmentTitleInput(e.target.value)}
+              placeholder={`${calendarType === 'hijri' ? '1448 AH' : '2026'} Annual Zakat Assessment`}
+              className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 focus:ring-2 focus:ring-emerald-500 outline-none text-stone-900 dark:text-stone-100"
+            />
+            <span className="text-[10px] text-stone-400">
+              Optional custom label (e.g. "Ramadan Assessment", "Coffee Harvest Ushr Jimma").
+            </span>
+          </div>
+
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-stone-200 dark:border-stone-800">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsSaveModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="gold"
+              size="sm"
+              icon={<BookmarkCheck className="w-4 h-4" />}
+              onClick={handleSaveCalculation}
+            >
+              Save to My History
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

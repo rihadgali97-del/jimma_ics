@@ -30,6 +30,7 @@ import {
   AuditDirective,
   AuditChecklistItem,
   CryptographicLedgerBlock,
+  ZakatCalculationRecord,
 } from '../types';
 import { mockMosques } from '../data/mockMosques';
 import { mockMadrasas } from '../data/mockMadrasas';
@@ -43,6 +44,7 @@ import { mockDispatchHistory, initialGatewayStats } from '../data/mockGatewayDat
 import { initialStaffMembers, mockRoles, permissionCategories as defaultPermissionCategories, initialSecurityLogs } from '../data/mockStaffAndRoles';
 import { initialAttendanceSessions, initialStaffAttendance } from '../data/mockAttendance';
 import { mockAuditDirectives, mockAuditChecklist, mockLedgerBlocks } from '../data/mockAuditCompliance';
+import { mockZakatCalculations } from '../data/mockZakatHistory';
 
 export interface ToastNotification {
   id: string;
@@ -57,6 +59,16 @@ interface AppContextType {
   setCurrentUser: (user: User) => void;
   switchRole: (roleName: string) => void;
   allUsers: User[];
+  isLoggedIn: boolean;
+  setIsLoggedIn: (loggedIn: boolean) => void;
+  loginAs: (user: User) => void;
+  logout: () => void;
+
+  // Zakat Calculations History
+  zakatCalculations: ZakatCalculationRecord[];
+  addZakatCalculation: (calc: Omit<ZakatCalculationRecord, 'id'>) => ZakatCalculationRecord;
+  deleteZakatCalculation: (id: string) => void;
+  updateZakatCalculation: (id: string, updates: Partial<ZakatCalculationRecord>) => void;
 
   // Staff & RBAC Management
   staffList: User[];
@@ -172,6 +184,77 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User>(initialStaffMembers[0]);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('jimma_council_is_logged_in');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const [zakatCalculations, setZakatCalculations] = useState<ZakatCalculationRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('jimma_council_zakat_calculations');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // fallback
+    }
+    return mockZakatCalculations;
+  });
+
+  const loginAs = (user: User) => {
+    setCurrentUser(user);
+    setIsLoggedIn(true);
+    try {
+      localStorage.setItem('jimma_council_is_logged_in', 'true');
+    } catch {}
+    addToast(`Signed In as ${user.name}`, `Welcome to your personal Council & Zakat portal.`, 'success');
+  };
+
+  const logout = () => {
+    setIsLoggedIn(false);
+    try {
+      localStorage.setItem('jimma_council_is_logged_in', 'false');
+    } catch {}
+    addToast('Signed Out', 'You have been signed out from your community account.', 'info');
+  };
+
+  const addZakatCalculation = (calc: Omit<ZakatCalculationRecord, 'id'>) => {
+    const id = `zcalc-${Date.now()}`;
+    const newCalc: ZakatCalculationRecord = { ...calc, id };
+    setZakatCalculations((prev) => {
+      const updated = [newCalc, ...prev];
+      try {
+        localStorage.setItem('jimma_council_zakat_calculations', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    addToast('Assessment Saved to History', `"${calc.title}" recorded to your personal Zakat archive.`, 'success');
+    return newCalc;
+  };
+
+  const deleteZakatCalculation = (id: string) => {
+    setZakatCalculations((prev) => {
+      const updated = prev.filter((c) => c.id !== id);
+      try {
+        localStorage.setItem('jimma_council_zakat_calculations', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    addToast('Record Removed', 'The Zakat assessment has been deleted from your archive.', 'info');
+  };
+
+  const updateZakatCalculation = (id: string, updates: Partial<ZakatCalculationRecord>) => {
+    setZakatCalculations((prev) => {
+      const updated = prev.map((c) => (c.id === id ? { ...c, ...updates } : c));
+      try {
+        localStorage.setItem('jimma_council_zakat_calculations', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
+
   const [staffList, setStaffList] = useState<User[]>(initialStaffMembers);
   const [rolesList, setRolesList] = useState<RoleDefinition[]>(mockRoles);
   const [permissionCategories] = useState<PermissionCategory[]>(defaultPermissionCategories);
@@ -554,6 +637,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       recordedBy: 'Public Online Portal',
     };
     setTransactions((prev) => [newTx, ...prev]);
+
+    // If this is a Zakat payment, auto-mark any matching pending calculation as discharged
+    if (data.fundId === 'fund-4' || data.fundName.toLowerCase().includes('zakat')) {
+      setZakatCalculations((prev) => {
+        const updated = prev.map((c) => {
+          if (c.status === 'Obligation Pending') {
+            return {
+              ...c,
+              status: 'Fulfilled / Discharged' as const,
+              linkedDonationReceiptNo: receiptNo,
+            };
+          }
+          return c;
+        });
+        try {
+          localStorage.setItem('jimma_council_zakat_calculations', JSON.stringify(updated));
+        } catch {}
+        return updated;
+      });
+    }
 
     addToast('Donation Received! Jazakallahu Khayran', `Receipt #${receiptNo} generated for ${data.amountETB.toLocaleString()} ETB.`, 'success');
     return newDonation;
@@ -1218,6 +1321,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCurrentUser,
         switchRole,
         allUsers: staffList,
+        isLoggedIn,
+        setIsLoggedIn,
+        loginAs,
+        logout,
+        zakatCalculations,
+        addZakatCalculation,
+        deleteZakatCalculation,
+        updateZakatCalculation,
         staffList,
         addStaff,
         updateStaff,

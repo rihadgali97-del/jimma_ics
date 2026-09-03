@@ -520,7 +520,7 @@ export const HomePage: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2 mb-1">
                   <Badge variant="teal">{service.category}</Badge>
-                  <span className="text-xs text-stone-400">• {service.turnaroundTime}</span>
+                  <span className="text-xs text-stone-400">• {service.processingTime}</span>
                 </div>
                 <h3 className="font-serif font-bold text-lg text-stone-900 dark:text-stone-100 mt-1">
                   {service.title}
@@ -532,9 +532,9 @@ export const HomePage: React.FC = () => {
 
               <div className="mt-6 pt-4 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
                 <span className="text-xs font-mono font-semibold text-stone-500">
-                  Fee: {service.feeETB === 0 ? 'Free / Voluntary' : `${service.feeETB} ETB`}
+                  Fee: {service.feeETB}
                 </span>
-                <Link to="/services">
+                <Link to={`/services?apply=${service.id}`}>
                   <Button variant="outline" size="sm" className="text-xs">
                     Apply Online
                   </Button>

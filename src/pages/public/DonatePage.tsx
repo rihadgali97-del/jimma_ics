@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useLanguage } from '../../context/LanguageContext';
 import {
@@ -12,16 +13,37 @@ import {
   BookOpen,
   Sparkles,
   Lock,
+  Scale,
+  ArrowRight,
+  Calculator,
+  ChevronRight,
+  Info,
+  Smartphone,
+  CreditCard,
+  Coins,
+  RefreshCw,
+  History,
 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { IslamicPattern } from '../../components/common/IslamicPattern';
+import { ZakatCalculator } from '../../components/services/ZakatCalculator';
 import { Donation } from '../../types';
 
 export const DonatePage: React.FC = () => {
-  const { funds, addDonation } = useApp();
+  const { funds, addDonation, addToast, currentUser, isLoggedIn, zakatCalculations } = useApp();
   const { t, language } = useLanguage();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Tab state: 'donate', 'zakat-calculator', or 'zakat-history'
+  const initialTab =
+    searchParams.get('tab') === 'zakat-history' || searchParams.get('tab') === 'history'
+      ? 'zakat-history'
+      : searchParams.get('tab') === 'zakat-calculator' || searchParams.get('tab') === 'calculator'
+      ? 'zakat-calculator'
+      : 'donate';
+  const [activeTab, setActiveTab] = useState<'donate' | 'zakat-calculator' | 'zakat-history'>(initialTab);
 
   const [selectedFundId, setSelectedFundId] = useState(funds[0]?.id || 'fund-1');
   const [amount, setAmount] = useState<number>(1000);
@@ -31,14 +53,72 @@ export const DonatePage: React.FC = () => {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'Telebirr' | 'CBE Birr' | 'Awash Bank' | 'Bank Transfer'>('Telebirr');
   const [completedDonation, setCompletedDonation] = useState<Donation | null>(null);
+  const [importedFromZakat, setImportedFromZakat] = useState(false);
+
+  // Quick inline 2.5% estimator states
+  const [showQuickEstimator, setShowQuickEstimator] = useState(false);
+  const [quickWealthETB, setQuickWealthETB] = useState<string>('');
+
+  const paymentSectionRef = useRef<HTMLDivElement>(null);
+
+  // User's recorded Zakat calculations count
+  const userCalculationsCount = useMemo(() => {
+    if (!isLoggedIn) return 0;
+    return zakatCalculations.filter((calc) => {
+      return (
+        calc.userEmail.toLowerCase() === currentUser.email.toLowerCase() ||
+        calc.userName.toLowerCase() === currentUser.name.toLowerCase() ||
+        (currentUser.role === 'Super Admin' && calc.userEmail.includes('admin@jimma'))
+      );
+    }).length;
+  }, [zakatCalculations, currentUser, isLoggedIn]);
+
+  // Sync tab and deep-linked values with URL search parameters
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'zakat-history' || tabParam === 'history') {
+      setActiveTab('zakat-history');
+    } else if (tabParam === 'zakat-calculator' || tabParam === 'calculator') {
+      setActiveTab('zakat-calculator');
+    }
+    const amountParam = searchParams.get('amount');
+    if (amountParam) {
+      const num = parseFloat(amountParam);
+      if (!isNaN(num) && num > 0) {
+        setAmount(num);
+        setCustomAmount(num.toString());
+      }
+    }
+    const fundParam = searchParams.get('fund');
+    if (fundParam) {
+      const matched = funds.find((f) => f.id === fundParam || f.name.toLowerCase().includes(fundParam.toLowerCase()));
+      if (matched) {
+        setSelectedFundId(matched.id);
+        if (matched.id === 'fund-4' || matched.name.toLowerCase().includes('zakat')) {
+          setImportedFromZakat(true);
+        }
+      }
+    }
+  }, [searchParams, funds]);
+
+  const handleTabChange = (tab: 'donate' | 'zakat-calculator' | 'zakat-history') => {
+    setActiveTab(tab);
+    if (tab === 'zakat-calculator') {
+      setSearchParams({ tab: 'zakat-calculator' });
+    } else if (tab === 'zakat-history') {
+      setSearchParams({ tab: 'zakat-history' });
+    } else {
+      setSearchParams({});
+    }
+  };
 
   const presetAmounts = [500, 1000, 2500, 5000, 10000];
-
   const selectedFund = funds.find((f) => f.id === selectedFundId) || funds[0];
 
   const handleSelectPreset = (val: number) => {
     setAmount(val);
     setCustomAmount('');
+    setImportedFromZakat(false);
   };
 
   const handleCustomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,6 +127,55 @@ export const DonatePage: React.FC = () => {
     const num = parseFloat(val);
     if (!isNaN(num) && num > 0) {
       setAmount(num);
+    }
+    setImportedFromZakat(false);
+  };
+
+  // Direct handoff from Zakat Calculator tool into Donation Payment Gateway
+  const handleZakatGatewayTransfer = (calculatedAmount: number) => {
+    const finalAmount = Math.max(100, Math.round(calculatedAmount));
+    setAmount(finalAmount);
+    setCustomAmount(finalAmount.toString());
+
+    // Automatically select the Zakat & Social Welfare Fund (fund-4)
+    const zakatFund = funds.find((f) => f.id === 'fund-4' || f.name.toLowerCase().includes('zakat')) || funds[0];
+    if (zakatFund) {
+      setSelectedFundId(zakatFund.id);
+    }
+
+    setImportedFromZakat(true);
+    setActiveTab('donate');
+    setSearchParams({});
+
+    addToast(
+      'Zakat Obligation Transferred!',
+      `ETB ${finalAmount.toLocaleString()} loaded into donation payment gateway for ${zakatFund?.name || 'Zakat Fund'}.`,
+      'success'
+    );
+
+    setTimeout(() => {
+      paymentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+  };
+
+  // Inline Quick 2.5% Estimator apply
+  const handleQuickEstimateApply = () => {
+    const wealthNum = parseFloat(quickWealthETB);
+    if (!isNaN(wealthNum) && wealthNum > 0) {
+      const calculatedZakat = Math.round(wealthNum * 0.025);
+      setAmount(calculatedZakat);
+      setCustomAmount(calculatedZakat.toString());
+
+      const zakatFund = funds.find((f) => f.id === 'fund-4' || f.name.toLowerCase().includes('zakat')) || funds[0];
+      if (zakatFund) setSelectedFundId(zakatFund.id);
+
+      setImportedFromZakat(true);
+      setShowQuickEstimator(false);
+      addToast(
+        '2.5% Zakat Applied',
+        `2.5% Zakat obligation of ETB ${calculatedZakat.toLocaleString()} applied from net wealth of ETB ${wealthNum.toLocaleString()}.`,
+        'success'
+      );
     }
   };
 
@@ -86,6 +215,58 @@ export const DonatePage: React.FC = () => {
           Support verified mosques, student Quranic memorization, orphan care, and social welfare programs
           with direct, accountable, and audited digital channels.
         </p>
+
+        {/* Tab switcher: Direct Donation vs Zakat Calculator */}
+        {!completedDonation && (
+          <div className="pt-4 flex justify-center">
+            <div className="inline-flex p-1.5 rounded-2xl bg-stone-100 dark:bg-stone-800/90 border border-stone-200 dark:border-stone-700 shadow-inner max-w-2xl w-full">
+              <button
+                type="button"
+                onClick={() => handleTabChange('donate')}
+                className={`flex-1 py-3 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  activeTab === 'donate'
+                    ? 'bg-white dark:bg-stone-900 text-emerald-800 dark:text-emerald-400 shadow-md border border-stone-200/80 dark:border-stone-700'
+                    : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
+                }`}
+              >
+                <HeartHandshake className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="truncate">Direct Donation</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTabChange('zakat-calculator')}
+                className={`flex-1 py-3 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  activeTab === 'zakat-calculator'
+                    ? 'bg-white dark:bg-stone-900 text-amber-700 dark:text-amber-400 shadow-md border border-stone-200/80 dark:border-stone-700'
+                    : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
+                }`}
+              >
+                <Scale className="w-4 h-4 text-amber-600 shrink-0" />
+                <span className="truncate">Zakat Calculator</span>
+                <span className="hidden md:inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                  Live Nisab
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTabChange('zakat-history')}
+                className={`flex-1 py-3 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  activeTab === 'zakat-history'
+                    ? 'bg-white dark:bg-stone-900 text-emerald-800 dark:text-emerald-400 shadow-md border border-stone-200/80 dark:border-stone-700'
+                    : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
+                }`}
+              >
+                <History className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="truncate">Zakat History</span>
+                {isLoggedIn && userCalculationsCount > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-400 text-stone-950">
+                    {userCalculationsCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {completedDonation ? (
@@ -103,12 +284,25 @@ export const DonatePage: React.FC = () => {
                 جزاكم الله خيراً • Jazakallahu Khayran
               </span>
               <h2 className="text-2xl font-serif font-bold text-stone-900 dark:text-stone-100">
-                Official Donation Receipt & Certificate
+                {completedDonation.fundName.toLowerCase().includes('zakat')
+                  ? 'Official Zakat Discharge & Purification Certificate'
+                  : 'Official Donation Receipt & Certificate'}
               </h2>
               <p className="text-xs text-stone-500 mt-1">
                 Jimma Zone Islamic Affairs Supreme Council • Financial Registry
               </p>
             </div>
+
+            {completedDonation.fundName.toLowerCase().includes('zakat') && (
+              <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-center space-y-1 relative z-10">
+                <p className="font-serif text-sm text-emerald-900 dark:text-emerald-200 font-bold">
+                  "آجَرَكَ اللَّهُ فِيمَا أَعْطَيْتَ، وَبَارَكَ لَكَ فِيمَا أَبْقَيْتَ، وَجَعَلَهُ لَكَ طَهُوراً"
+                </p>
+                <p className="text-[11px] text-emerald-700 dark:text-emerald-300 italic">
+                  "May Allah reward you for what you gave, bless what you retained, and make it a purification for you."
+                </p>
+              </div>
+            )}
 
             {/* Receipt Summary Grid */}
             <div className="grid grid-cols-2 gap-4 text-xs relative z-10 p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/80 dark:border-stone-700">
@@ -174,7 +368,10 @@ export const DonatePage: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCompletedDonation(null)}
+                onClick={() => {
+                  setCompletedDonation(null);
+                  setImportedFromZakat(false);
+                }}
               >
                 Make Another Donation
               </Button>
@@ -199,11 +396,111 @@ export const DonatePage: React.FC = () => {
             </div>
           </div>
         </div>
+      ) : activeTab === 'zakat-calculator' || activeTab === 'zakat-history' ? (
+        /* ZAKAT CALCULATOR & HISTORY TOOL TAB WITH DIRECT PAYMENT GATEWAY LINK */
+        <div className="space-y-6 animate-in fade-in duration-300">
+          {/* Quick Notice Linking Calculator directly to Gateway */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950 via-stone-900 to-emerald-950 border border-emerald-800 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/40">
+                <Scale className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-serif font-bold text-sm text-white">
+                  Direct Zakat Obligation Gateway & History Archive
+                </h3>
+                <p className="text-xs text-stone-300">
+                  Calculate your Nisab obligation across cash, gold, business stock, or coffee harvests, track your past calculations & donations, or transfer amounts to the payment gateway.
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleTabChange('donate')}
+              className="text-xs text-stone-200 border-stone-700 hover:bg-stone-800 shrink-0"
+            >
+              Back to Donation Form
+            </Button>
+          </div>
+
+          {/* Embedded Full Zakat Calculator with History */}
+          <ZakatCalculator
+            initialTab={activeTab === 'zakat-history' ? 'history' : 'calculator'}
+            onProceedToPaymentGateway={handleZakatGatewayTransfer}
+            gatewayButtonText="Proceed to Donation Gateway with Calculated Zakat →"
+          />
+        </div>
       ) : (
-        /* Standard Donation Form */
+        /* Standard Donation Form (Tab 1) */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left 7 cols: Interactive Form */}
           <div className="lg:col-span-7 space-y-6">
+            {/* Zakat Calculator Teaser Banner */}
+            {importedFromZakat ? (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-emerald-50 dark:from-amber-950/40 dark:to-emerald-950/40 border-2 border-amber-500/60 dark:border-amber-600 text-stone-900 dark:text-stone-100 flex items-center justify-between gap-4 shadow-md animate-in fade-in">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500 text-stone-950 flex items-center justify-center font-bold shrink-0 shadow-xs">
+                    <Scale className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-serif font-bold text-sm text-stone-900 dark:text-stone-100">
+                        Zakat Obligation Imported from Calculator
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold font-mono bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
+                        {amount.toLocaleString()} ETB
+                      </span>
+                    </div>
+                    <p className="text-xs text-stone-600 dark:text-stone-300 mt-0.5">
+                      Assigned to the 100% audited Zakat & Social Welfare Fund (8 Asnaf). Select your Ethiopian payment channel below.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleTabChange('zakat-calculator')}
+                  className="text-xs shrink-0 border-amber-400 text-amber-900 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950"
+                  icon={<RefreshCw className="w-3.5 h-3.5" />}
+                >
+                  Recalculate
+                </Button>
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 via-emerald-50/50 to-stone-50 dark:from-amber-950/30 dark:via-emerald-950/30 dark:to-stone-900 border border-amber-300/70 dark:border-amber-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
+                    <Scale className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-serif font-bold text-sm text-stone-900 dark:text-stone-100">
+                        Need to calculate your annual Zakat obligation?
+                      </h4>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                        Live Nisab
+                      </span>
+                    </div>
+                    <p className="text-xs text-stone-600 dark:text-stone-300">
+                      Estimate your exact Zakat on Cash, Gold, Trade Inventory, or Jimma Coffee Ushr with 1-click gateway import.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                  <Button
+                    variant="gold"
+                    size="sm"
+                    onClick={() => handleTabChange('zakat-calculator')}
+                    icon={<Sparkles className="w-3.5 h-3.5" />}
+                    className="w-full sm:w-auto text-xs font-bold justify-center shadow-xs"
+                  >
+                    Open Zakat Tool
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <Card className="space-y-6">
               <h3 className="font-serif font-bold text-xl text-stone-900 dark:text-stone-100">
                 1. Select Designated Council Fund
@@ -212,18 +509,24 @@ export const DonatePage: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {funds.map((f) => {
                   const isSelected = selectedFundId === f.id;
+                  const isZakat = f.id === 'fund-4' || f.name.toLowerCase().includes('zakat');
                   return (
                     <button
                       key={f.id}
                       type="button"
                       onClick={() => setSelectedFundId(f.id)}
-                      className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                      className={`p-4 rounded-2xl border text-left transition-all cursor-pointer relative ${
                         isSelected
                           ? 'border-emerald-600 bg-emerald-50/70 dark:bg-emerald-950/40 ring-2 ring-emerald-500'
                           : 'border-stone-200 dark:border-stone-700 bg-stone-50/50 dark:bg-stone-800/40 hover:border-stone-300'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-1">
+                      {isZakat && (
+                        <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                          Zakat Eligible
+                        </span>
+                      )}
+                      <div className="flex items-center justify-between mb-1 pr-14">
                         <span className="font-serif font-bold text-sm text-stone-900 dark:text-stone-100">
                           {f.name}
                         </span>
@@ -244,9 +547,63 @@ export const DonatePage: React.FC = () => {
 
               {/* Amount Selection */}
               <div className="space-y-3 pt-2">
-                <h3 className="font-serif font-bold text-xl text-stone-900 dark:text-stone-100">
-                  2. Choose Donation Amount (ETB)
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-serif font-bold text-xl text-stone-900 dark:text-stone-100">
+                    2. Choose Donation Amount (ETB)
+                  </h3>
+
+                  {/* Inline Quick 2.5% Estimator toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickEstimator(!showQuickEstimator)}
+                    className="inline-flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400 hover:underline font-semibold cursor-pointer"
+                  >
+                    <Calculator className="w-3.5 h-3.5" />
+                    <span>{showQuickEstimator ? 'Hide Quick Estimator' : 'Quick 2.5% Helper'}</span>
+                  </button>
+                </div>
+
+                {/* Inline Quick Estimator Collapsible Card */}
+                {showQuickEstimator && (
+                  <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 space-y-2.5 animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-stone-800 dark:text-stone-200 flex items-center gap-1.5">
+                        <Scale className="w-3.5 h-3.5 text-amber-600" />
+                        Quick 2.5% Liquid Wealth Zakat Helper
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleTabChange('zakat-calculator')}
+                        className="text-[11px] text-amber-700 dark:text-amber-400 hover:underline font-medium"
+                      >
+                        Full Asset Calculator →
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono text-stone-400">
+                          ETB
+                        </span>
+                        <input
+                          type="number"
+                          placeholder="Enter your total savings/cash..."
+                          value={quickWealthETB}
+                          onChange={(e) => setQuickWealthETB(e.target.value)}
+                          className="w-full pl-11 pr-3 py-2 text-xs rounded-xl bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 font-mono outline-hidden"
+                        />
+                      </div>
+                      <Button
+                        variant="gold"
+                        size="sm"
+                        onClick={handleQuickEstimateApply}
+                        className="text-xs shrink-0 font-bold"
+                        disabled={!quickWealthETB || parseFloat(quickWealthETB) <= 0}
+                      >
+                        Apply 2.5% ({quickWealthETB ? Math.round(parseFloat(quickWealthETB) * 0.025).toLocaleString() : '0'} ETB)
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                   {presetAmounts.map((preset) => (
@@ -281,7 +638,7 @@ export const DonatePage: React.FC = () => {
               </div>
 
               {/* Donor Details & Payment Options */}
-              <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+              <form ref={paymentSectionRef} onSubmit={handleSubmit} className="space-y-4 pt-2">
                 <h3 className="font-serif font-bold text-xl text-stone-900 dark:text-stone-100">
                   3. Donor Details & Payment Gateway
                 </h3>
@@ -303,7 +660,7 @@ export const DonatePage: React.FC = () => {
 
                   <div>
                     <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1">
-                      Phone Number (for SMS Receipt)
+                      Phone Number (for SMS Receipt & Verification)
                     </label>
                     <input
                       type="tel"
@@ -326,8 +683,8 @@ export const DonatePage: React.FC = () => {
                 </label>
 
                 {/* Payment Gateway selector */}
-                <div className="pt-2">
-                  <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1.5">
+                <div className="pt-2 space-y-3">
+                  <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300">
                     Select Ethiopian Payment Gateway
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -336,15 +693,43 @@ export const DonatePage: React.FC = () => {
                         key={method}
                         type="button"
                         onClick={() => setPaymentMethod(method)}
-                        className={`p-3 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
+                        className={`p-3 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center flex flex-col items-center justify-center gap-1 ${
                           paymentMethod === method
-                            ? 'bg-emerald-800 text-white border-emerald-800 shadow-sm'
+                            ? 'bg-emerald-800 text-white border-emerald-800 shadow-md ring-2 ring-emerald-500'
                             : 'bg-stone-50 dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:border-stone-400'
                         }`}
                       >
-                        {method}
+                        <span>{method}</span>
                       </button>
                     ))}
+                  </div>
+
+                  {/* Payment Gateway Instructions Box */}
+                  <div className="p-3.5 rounded-xl bg-stone-100 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700 text-xs text-stone-700 dark:text-stone-300 space-y-1.5">
+                    <div className="flex items-center gap-2 font-bold text-stone-900 dark:text-stone-100">
+                      <Smartphone className="w-4 h-4 text-emerald-600" />
+                      <span>{paymentMethod} Payment Instructions</span>
+                    </div>
+                    {paymentMethod === 'Telebirr' && (
+                      <p className="leading-relaxed">
+                        Open Telebirr SuperApp → <strong className="text-emerald-700 dark:text-emerald-400">Pay Merchant</strong> → Enter Council Merchant Code: <span className="font-mono font-bold bg-white dark:bg-stone-900 px-1.5 py-0.5 rounded-sm border">88219</span> or dial <span className="font-mono font-bold">*127#</span>.
+                      </p>
+                    )}
+                    {paymentMethod === 'CBE Birr' && (
+                      <p className="leading-relaxed">
+                        Commercial Bank of Ethiopia: Transfer to Council Account <span className="font-mono font-bold bg-white dark:bg-stone-900 px-1.5 py-0.5 rounded-sm border">1000-2345-89012</span> (Jimma Zone Islamic Affairs) or use CBE Birr USSD <span className="font-mono font-bold">*847#</span>.
+                      </p>
+                    )}
+                    {paymentMethod === 'Awash Bank' && (
+                      <p className="leading-relaxed">
+                        Awash Bank / Awash Birr: Transfer to Council Account <span className="font-mono font-bold bg-white dark:bg-stone-900 px-1.5 py-0.5 rounded-sm border">0132-0495-810200</span> (Jimma Supreme Council Shari'ah Fund).
+                      </p>
+                    )}
+                    {paymentMethod === 'Bank Transfer' && (
+                      <p className="leading-relaxed">
+                        Direct electronic transfer or branch cash deposit to CBE Jimma Aba Jifar Branch, Account 1000-2345-89012. Reference your receipt number upon completion.
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -356,7 +741,7 @@ export const DonatePage: React.FC = () => {
                     icon={<HeartHandshake className="w-5 h-5" />}
                     className="w-full justify-center text-base font-bold shadow-lg"
                   >
-                    Confirm Donation of {amount.toLocaleString()} ETB
+                    Confirm Donation of {amount.toLocaleString()} ETB via {paymentMethod}
                   </Button>
                 </div>
               </form>
@@ -381,32 +766,35 @@ export const DonatePage: React.FC = () => {
               <div className="space-y-2 pt-2 text-xs border-t border-emerald-900">
                 <div className="flex items-center gap-2 text-emerald-200">
                   <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>Direct allocation with zero administrative skimming</span>
+                  <span>Direct allocation with zero administrative skimming on Zakat</span>
                 </div>
                 <div className="flex items-center gap-2 text-emerald-200">
                   <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>Instant verified digital receipt with tracking code</span>
+                  <span>Instant verified digital receipt with Shari'ah tracking code</span>
                 </div>
                 <div className="flex items-center gap-2 text-emerald-200">
                   <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>Audited quarterly reports published to public ledger</span>
+                  <span>Audited quarterly reports published to public transparency ledger</span>
                 </div>
               </div>
             </Card>
 
             <Card className="space-y-4">
               <h4 className="font-serif font-bold text-base text-stone-900 dark:text-stone-100">
-                Direct Impact of Your Sadaqah
+                Direct Impact of Your Contribution
               </h4>
               <div className="space-y-3 text-xs text-stone-600 dark:text-stone-300">
                 <div className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-100 dark:border-stone-700/60">
-                  <span className="font-bold text-emerald-700 dark:text-emerald-400">500 ETB:</span> Provides Quran copies and textbooks for two madrasa students.
+                  <span className="font-bold text-emerald-700 dark:text-emerald-400">500 ETB:</span> Provides Quran copies and textbooks for two madrasa students in Jimma.
                 </div>
                 <div className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-100 dark:border-stone-700/60">
                   <span className="font-bold text-amber-700 dark:text-amber-400">2,500 ETB:</span> One month full sponsorship (meals + boarding) for an orphan Hifz student.
                 </div>
                 <div className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-100 dark:border-stone-700/60">
-                  <span className="font-bold text-blue-700 dark:text-blue-400">10,000 ETB:</span> Acoustic system maintenance and prayer carpet for rural district mosque.
+                  <span className="font-bold text-blue-700 dark:text-blue-400">10,000 ETB:</span> Acoustic system maintenance and clean prayer carpet for rural district mosque.
+                </div>
+                <div className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-100 dark:border-stone-700/60">
+                  <span className="font-bold text-purple-700 dark:text-purple-400">25,000+ ETB (Zakat):</span> Disbursed directly to certified destitute families under the 8 Qur'anic Asnaf across 18 woredas.
                 </div>
               </div>
             </Card>

@@ -255,6 +255,60 @@ export interface Donation {
   taxExemptCode?: string;
 }
 
+export interface ZakatCalculationRecord {
+  id: string;
+  userId?: string;
+  userName: string;
+  userEmail: string;
+  title: string;
+  date: string;
+  hijriYear: string;
+  nisabStandard: 'gold' | 'silver';
+  nisabThresholdETB: number;
+  totalAssetsETB: number;
+  totalLiabilitiesETB: number;
+  netZakatableWealthETB: number;
+  isEligible: boolean;
+  totalZakatObligationETB: number;
+  status: 'Fulfilled / Discharged' | 'Obligation Pending' | 'Archived';
+  linkedDonationReceiptNo?: string;
+  assetBreakdown: {
+    cashAndLiquidityETB: number;
+    goldAndSilverETB: number;
+    businessStockETB: number;
+    investmentsETB: number;
+    agricultureUshrETB: number;
+    livestockETB: number;
+  };
+  inputSnapshot?: {
+    cashInHand: number;
+    bankDeposits: number;
+    digitalWallets: number;
+    foreignCurrencyETB?: number;
+    goodDebtsReceivable?: number;
+    gold24kGrams: number;
+    gold21kGrams: number;
+    gold18kGrams?: number;
+    silverGrams: number;
+    stockInventoryValue: number;
+    rawMaterialsValue?: number;
+    goodsInTransit?: number;
+    tradeReceivables?: number;
+    sharesLiquidValue?: number;
+    retainedRentalIncome?: number;
+    accessiblePension?: number;
+    harvestQuintals: number;
+    cropType: string;
+    cropPricePerQuintal?: number;
+    irrigationType: 'rain' | 'irrigated' | 'mixed';
+    cattleCount?: number;
+    sheepGoatCount?: number;
+    shortTermDebts: number;
+    livingExpensesImmediate?: number;
+  };
+  notes?: string;
+}
+
 export interface ZakatBeneficiaryDistribution {
   id: string;
   asnafCategory: string;

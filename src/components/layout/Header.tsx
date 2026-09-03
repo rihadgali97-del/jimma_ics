@@ -35,12 +35,14 @@ export const Header: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [institutionsDropdown, setInstitutionsDropdown] = useState(false);
-  const [mobileInstitutionsOpen, setMobileInstitutionsOpen] = useState(true);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [mobileInstitutionsOpen, setMobileInstitutionsOpen] = useState(false);
+  const [mobileServicesOpen, setMobileServicesOpen] = useState(true);
 
   // Close mobile menu on route change
   useEffect(() => {
     setMobileMenuOpen(false);
+    setOpenDropdown(null);
   }, [location.pathname]);
 
   // Lock body scroll when mobile menu is open
@@ -60,6 +62,8 @@ export const Header: React.FC = () => {
     { label: t('about'), path: '/about' },
     {
       label: 'Institutions',
+      id: 'institutions',
+      path: '/mosques',
       isDropdown: true,
       children: [
         { label: t('mosques'), path: '/mosques', icon: <Building className="w-4 h-4 text-emerald-600" /> },
@@ -68,8 +72,20 @@ export const Header: React.FC = () => {
         { label: t('gisMap'), path: '/map', icon: <Compass className="w-4 h-4 text-teal-600" /> },
       ],
     },
-    { label: t('gisMap'), path: '/map' },
-    { label: t('services'), path: '/services' },
+    {
+      label: t('services'),
+      id: 'services',
+      path: '/services',
+      isDropdown: true,
+      children: [
+        { label: 'Services Catalogue', path: '/services', icon: <HandHeart className="w-4 h-4 text-emerald-600" /> },
+        { label: 'Nikah Marriage Registration', path: '/services?apply=srv-1', icon: <HeartHandshake className="w-4 h-4 text-rose-600" /> },
+        { label: 'Zakat & Welfare Aid', path: '/services?apply=srv-2', icon: <Scale className="w-4 h-4 text-amber-600" /> },
+        { label: 'Janazah Emergency (24/7)', path: '/services?apply=srv-3', icon: <Building className="w-4 h-4 text-stone-600" /> },
+        { label: 'Interactive Zakat Calculator', path: '/services?tab=zakat', icon: <Calculator className="w-4 h-4 text-emerald-600" /> },
+        { label: 'Track Your Application', path: '/services?tab=track', icon: <Search className="w-4 h-4 text-teal-600" /> },
+      ],
+    },
     { label: t('events'), path: '/events' },
     { label: t('announcements'), path: '/announcements' },
     { label: t('transparency'), path: '/transparency' },
@@ -146,43 +162,55 @@ export const Header: React.FC = () => {
           </Link>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden xl:flex items-center gap-1">
+          <nav className="hidden lg:flex items-center gap-0.5 xl:gap-1">
             {navLinks.map((link) => {
+              const dropdownId = link.id || link.label;
               if (link.isDropdown && link.children) {
-                const isAnyChildActive = link.children.some((c) => isActive(c.path));
+                const isAnyChildActive = link.children.some((c) => isActive(c.path)) || (link.path ? isActive(link.path) : false);
+                const isOpen = openDropdown === dropdownId;
                 return (
                   <div
                     key={link.label}
                     className="relative"
-                    onMouseEnter={() => setInstitutionsDropdown(true)}
-                    onMouseLeave={() => setInstitutionsDropdown(false)}
+                    onMouseEnter={() => setOpenDropdown(dropdownId)}
+                    onMouseLeave={() => setOpenDropdown(null)}
                   >
                     <button
-                      className={`flex items-center gap-1 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
+                      onClick={() => {
+                        if (link.path) {
+                          navigate(link.path);
+                          setOpenDropdown(null);
+                        }
+                      }}
+                      className={`flex items-center gap-1 px-2.5 xl:px-3.5 py-2 rounded-xl text-xs xl:text-sm font-medium transition-colors cursor-pointer ${
                         isAnyChildActive
                           ? 'text-emerald-800 dark:text-emerald-300 font-semibold bg-emerald-50 dark:bg-emerald-950/40'
                           : 'text-stone-700 dark:text-stone-300 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-stone-50 dark:hover:bg-stone-800/50'
                       }`}
                     >
                       <span>{link.label}</span>
-                      <ChevronDown className="w-3.5 h-3.5 opacity-70" />
+                      <ChevronDown className={`w-3.5 h-3.5 opacity-70 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                     </button>
 
-                    {institutionsDropdown && (
-                      <div className="absolute top-full left-0 w-56 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-xl p-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+                    {isOpen && (
+                      <div className="absolute top-full left-0 w-64 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-100">
                         {link.children.map((child) => (
                           <Link
                             key={child.path}
                             to={child.path}
-                            onClick={() => setInstitutionsDropdown(false)}
-                            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-colors ${
+                            onClick={() => setOpenDropdown(null)}
+                            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs xl:text-sm transition-colors ${
                               isActive(child.path)
                                 ? 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200 font-semibold'
                                 : 'text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800'
                             }`}
                           >
-                            {child.icon}
-                            <span>{child.label}</span>
+                            <div className="shrink-0 p-1.5 rounded-lg bg-stone-100 dark:bg-stone-800">
+                              {child.icon}
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="font-medium truncate">{child.label}</span>
+                            </div>
                           </Link>
                         ))}
                       </div>
@@ -195,7 +223,7 @@ export const Header: React.FC = () => {
                 <Link
                   key={link.path}
                   to={link.path!}
-                  className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                  className={`px-2.5 xl:px-3 py-2 rounded-xl text-xs xl:text-sm font-medium transition-colors ${
                     isActive(link.path!)
                       ? 'text-emerald-800 dark:text-emerald-300 font-semibold bg-emerald-50 dark:bg-emerald-950/40'
                       : 'text-stone-700 dark:text-stone-300 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-stone-50 dark:hover:bg-stone-800/50'
@@ -250,7 +278,7 @@ export const Header: React.FC = () => {
             {/* Mobile Hamburger Menu Toggle */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="xl:hidden p-2 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
+              className="lg:hidden p-2 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
               aria-label="Toggle Mobile Menu"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -263,10 +291,10 @@ export const Header: React.FC = () => {
       {mobileMenuOpen && (
         <>
           <div
-            className="fixed inset-0 top-[105px] z-40 bg-stone-950/60 xl:hidden backdrop-blur-xs"
+            className="fixed inset-0 top-[105px] z-40 bg-stone-950/60 lg:hidden backdrop-blur-xs"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="fixed inset-x-0 top-[105px] max-h-[calc(100vh-105px)] overflow-y-auto z-50 xl:hidden bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 px-4 py-6 shadow-2xl animate-in slide-in-from-top-2 duration-150">
+          <div className="fixed inset-x-0 top-[105px] max-h-[calc(100vh-105px)] overflow-y-auto z-50 lg:hidden bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 px-4 py-6 shadow-2xl animate-in slide-in-from-top-2 duration-150">
             <nav className="space-y-1">
               <Link
                 to="/"
@@ -341,7 +369,76 @@ export const Header: React.FC = () => {
                 )}
               </div>
 
-              {/* Services & Community */}
+              {/* Services & Civic Desk Accordion */}
+              <div className="pt-2 pb-1">
+                <button
+                  onClick={() => setMobileServicesOpen(!mobileServicesOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <HandHeart className="w-4 h-4" />
+                    <span>Public Services & Civic Desk</span>
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform ${mobileServicesOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {mobileServicesOpen && (
+                  <div className="space-y-1 mt-1 pl-2">
+                    <Link
+                      to="/services"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-emerald-800 dark:text-emerald-300 bg-emerald-50/80 dark:bg-emerald-950/40 font-bold"
+                    >
+                      <HandHeart className="w-4 h-4 text-emerald-600" />
+                      <span>All Services Catalogue</span>
+                    </Link>
+                    <Link
+                      to="/services?apply=srv-1"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-stone-700 dark:text-stone-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                    >
+                      <HeartHandshake className="w-4 h-4 text-rose-600" />
+                      <span>Nikah Marriage Registration</span>
+                    </Link>
+                    <Link
+                      to="/services?apply=srv-2"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-stone-700 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                    >
+                      <Scale className="w-4 h-4 text-amber-600" />
+                      <span>Zakat & Social Welfare Aid</span>
+                    </Link>
+                    <Link
+                      to="/services?apply=srv-3"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800"
+                    >
+                      <Building className="w-4 h-4 text-stone-600" />
+                      <span>Janazah Emergency Support (24/7)</span>
+                    </Link>
+                    <Link
+                      to="/services?tab=zakat"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                    >
+                      <Calculator className="w-4 h-4 text-amber-500" />
+                      <span>Zakat & Ushr Calculator</span>
+                    </Link>
+                    <Link
+                      to="/services?tab=track"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800"
+                    >
+                      <Search className="w-4 h-4 text-teal-600" />
+                      <span>Track Service Application</span>
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {/* Community & Governance */}
               <div className="pt-3 pb-1 px-4 text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">
                 Community & Governance
               </div>

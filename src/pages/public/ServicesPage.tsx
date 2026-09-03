@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useSearchParams, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams, useLocation, useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useLanguage } from '../../context/LanguageContext';
 import {
@@ -17,6 +17,11 @@ import {
   Scale,
   Sparkles,
   HeartHandshake,
+  BookOpen,
+  Info,
+  Copy,
+  Check,
+  Filter,
 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
@@ -27,15 +32,21 @@ import { ZakatCalculator } from '../../components/services/ZakatCalculator';
 import { IslamicPattern } from '../../components/common/IslamicPattern';
 
 export const ServicesPage: React.FC = () => {
+  const navigate = useNavigate();
   const { publicServices, serviceRequests, submitServiceRequest, addToast } = useApp();
   const { t } = useLanguage();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
+  const [detailService, setDetailService] = useState<ServiceItem | null>(null);
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'catalogue' | 'zakat' | 'track'>('catalogue');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [searchFilter, setSearchFilter] = useState('');
   const [trackQuery, setTrackQuery] = useState('');
   const [searchedRequest, setSearchedRequest] = useState<any>(null);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
@@ -43,8 +54,35 @@ export const ServicesPage: React.FC = () => {
       setActiveTab('zakat');
     } else if (tabParam === 'track') {
       setActiveTab('track');
+    } else {
+      setActiveTab('catalogue');
     }
-  }, [searchParams]);
+
+    const applyId = searchParams.get('apply') || searchParams.get('service');
+    if (applyId) {
+      const match = publicServices.find((s) => s.id === applyId);
+      if (match) {
+        setSelectedService(match);
+        setIsApplyModalOpen(true);
+      }
+    }
+
+    const categoryParam = searchParams.get('category');
+    if (categoryParam) {
+      setSelectedCategory(categoryParam);
+    }
+
+    const trackParam = searchParams.get('trackingNo');
+    if (trackParam) {
+      setTrackQuery(trackParam);
+      const found = serviceRequests.find(
+        (r) => r.trackingNo.toLowerCase() === trackParam.toLowerCase().trim()
+      );
+      if (found) {
+        setSearchedRequest(found);
+      }
+    }
+  }, [searchParams, publicServices, serviceRequests]);
 
   // Form state
   const [applicantName, setApplicantName] = useState('');
@@ -57,6 +95,40 @@ export const ServicesPage: React.FC = () => {
     setIsApplyModalOpen(true);
   };
 
+  const openDetails = (service: ServiceItem) => {
+    setDetailService(service);
+    setIsDetailModalOpen(true);
+  };
+
+  const handleTabChange = (tab: 'catalogue' | 'zakat' | 'track') => {
+    setActiveTab(tab);
+    if (tab === 'catalogue') {
+      setSearchParams({});
+    } else {
+      setSearchParams({ tab });
+    }
+  };
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    publicServices.forEach((s) => set.add(s.category));
+    return ['All', ...Array.from(set)];
+  }, [publicServices]);
+
+  const filteredServices = useMemo(() => {
+    return publicServices.filter((s) => {
+      const matchesCategory = selectedCategory === 'All' || s.category === selectedCategory;
+      const q = searchFilter.toLowerCase().trim();
+      const matchesQuery =
+        !q ||
+        s.title.toLowerCase().includes(q) ||
+        (s.arabicTitle && s.arabicTitle.includes(q)) ||
+        s.shortDesc.toLowerCase().includes(q) ||
+        s.category.toLowerCase().includes(q);
+      return matchesCategory && matchesQuery;
+    });
+  }, [publicServices, selectedCategory, searchFilter]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedService || !applicantName || !phone) {
@@ -64,14 +136,33 @@ export const ServicesPage: React.FC = () => {
       return;
     }
 
+    const serviceCategoryMap: Record<string, any> = {
+      'Nikah (Islamic Marriage)': 'Nikah Services',
+      'Zakat Assistance': 'Zakat Assistance',
+      'Janazah': 'Janazah Support',
+      'Counselling': 'Islamic Counselling',
+      'Halal': 'Halal Certification Guidance',
+      'Madrasa': 'Madrasa Registration',
+      'Waqf': 'Mosque Land & Waqf Support',
+      'Orphan': 'Orphan Sponsorship',
+    };
+
+    let resolvedType: any = 'Nikah Services';
+    for (const key of Object.keys(serviceCategoryMap)) {
+      if (selectedService.title.includes(key)) {
+        resolvedType = serviceCategoryMap[key];
+        break;
+      }
+    }
+
     const newReq = submitServiceRequest({
-      serviceId: selectedService.id,
-      serviceName: selectedService.title,
+      serviceType: resolvedType,
       applicantName,
-      phone,
-      district,
-      details: details || `Standard application for ${selectedService.title}`,
-      documentsAttached: selectedService.requiredDocuments.slice(0, 2),
+      applicantPhone: phone,
+      applicantDistrict: district,
+      notes: details || `Standard application for ${selectedService.title} by ${applicantName}`,
+      documentsCount: (selectedService.requiredDocs || []).length,
+      priority: selectedService.category === 'Funeral & Bereavement' ? 'Urgent' : 'Normal',
     });
 
     setIsApplyModalOpen(false);
@@ -79,21 +170,34 @@ export const ServicesPage: React.FC = () => {
     setPhone('');
     setDetails('');
     setTrackQuery(newReq.trackingNo);
-    setActiveTab('track');
+    handleTabChange('track');
     setSearchedRequest(newReq);
   };
 
   const handleTrack = (e: React.FormEvent) => {
     e.preventDefault();
+    const query = trackQuery.toLowerCase().trim();
+    if (!query) {
+      addToast('Input Required', 'Please enter a tracking reference code.', 'warning');
+      return;
+    }
     const found = serviceRequests.find(
-      (r) => r.trackingNo.toLowerCase() === trackQuery.toLowerCase().trim()
+      (r) => r.trackingNo.toLowerCase() === query || (r.id && r.id.toLowerCase() === query)
     );
     if (found) {
       setSearchedRequest(found);
+      addToast('Application Located', `Found tracking record for ${found.applicantName}`, 'success');
     } else {
       setSearchedRequest(null);
       addToast('Tracking No Not Found', `No application with ID "${trackQuery}" was located.`, 'warning');
     }
+  };
+
+  const copyTracking = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(true);
+    addToast('Copied', `Tracking #${code} copied to clipboard`, 'info');
+    setTimeout(() => setCopiedCode(false), 2000);
   };
 
   return (
@@ -114,26 +218,20 @@ export const ServicesPage: React.FC = () => {
         </div>
 
         {/* Tab switch: Catalogue, Zakat Calculator, or Tracking */}
-        <div className="flex flex-wrap items-center bg-stone-100 dark:bg-stone-800 p-1 rounded-2xl border border-stone-200 dark:border-stone-700">
+        <div className="flex flex-wrap items-center bg-stone-100 dark:bg-stone-800 p-1.5 rounded-2xl border border-stone-200 dark:border-stone-700 shadow-xs">
           <button
-            onClick={() => {
-              setActiveTab('catalogue');
-              setSearchParams({});
-            }}
-            className={`px-3.5 py-2 text-xs font-semibold rounded-xl transition-all ${
+            onClick={() => handleTabChange('catalogue')}
+            className={`px-3.5 py-2 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
               activeTab === 'catalogue'
-                ? 'bg-white dark:bg-stone-900 text-emerald-800 dark:text-emerald-300 shadow-xs'
+                ? 'bg-white dark:bg-stone-900 text-emerald-800 dark:text-emerald-300 shadow-xs font-bold'
                 : 'text-stone-600 dark:text-stone-400 hover:text-stone-900'
             }`}
           >
-            Services Catalogue
+            Services Catalogue ({publicServices.length})
           </button>
           <button
-            onClick={() => {
-              setActiveTab('zakat');
-              setSearchParams({ tab: 'zakat' });
-            }}
-            className={`px-3.5 py-2 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 ${
+            onClick={() => handleTabChange('zakat')}
+            className={`px-3.5 py-2 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${
               activeTab === 'zakat'
                 ? 'bg-emerald-700 text-white shadow-xs font-bold'
                 : 'text-emerald-700 dark:text-emerald-400 hover:text-emerald-800'
@@ -144,17 +242,15 @@ export const ServicesPage: React.FC = () => {
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse hidden sm:inline-block" />
           </button>
           <button
-            onClick={() => {
-              setActiveTab('track');
-              setSearchParams({ tab: 'track' });
-            }}
-            className={`px-3.5 py-2 text-xs font-semibold rounded-xl transition-all ${
+            onClick={() => handleTabChange('track')}
+            className={`px-3.5 py-2 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${
               activeTab === 'track'
-                ? 'bg-white dark:bg-stone-900 text-emerald-800 dark:text-emerald-300 shadow-xs'
+                ? 'bg-white dark:bg-stone-900 text-emerald-800 dark:text-emerald-300 shadow-xs font-bold'
                 : 'text-stone-600 dark:text-stone-400 hover:text-stone-900'
             }`}
           >
-            Track Application ({serviceRequests.length})
+            <Search className="w-3.5 h-3.5" />
+            <span>Track Application ({serviceRequests.length})</span>
           </button>
         </div>
       </div>
@@ -185,33 +281,76 @@ export const ServicesPage: React.FC = () => {
                 size="md"
                 className="w-full sm:w-auto md:w-full text-xs font-bold"
                 icon={<Calculator className="w-4 h-4" />}
-                onClick={() => {
-                  setActiveTab('zakat');
-                  setSearchParams({ tab: 'zakat' });
-                }}
+                onClick={() => handleTabChange('zakat')}
               >
                 Launch Zakat Calculator
               </Button>
             </div>
           </div>
 
+          {/* Filtering and Search Toolbar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white dark:bg-stone-900 p-3 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-xs">
+            {/* Category Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                    selectedCategory === cat
+                      ? 'bg-emerald-800 text-white font-semibold shadow-xs'
+                      : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Keyword Search */}
+            <div className="relative min-w-[220px]">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+              <input
+                type="text"
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                placeholder="Search services..."
+                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-stone-900 dark:text-stone-100 outline-hidden focus:border-emerald-500"
+              />
+              {searchFilter && (
+                <button
+                  onClick={() => setSearchFilter('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-stone-400 hover:text-stone-600"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Services Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {publicServices.map((service) => (
+            {filteredServices.map((service) => (
               <Card key={service.id} hoverEffect className="flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <Badge variant="teal">{service.category}</Badge>
                     <span className="text-xs text-stone-400 flex items-center gap-1 font-mono">
                       <Clock className="w-3.5 h-3.5" />
-                      {service.turnaroundTime}
+                      {service.processingTime}
                     </span>
                   </div>
 
                   <h3 className="font-serif font-bold text-lg text-stone-900 dark:text-stone-100">
                     {service.title}
                   </h3>
+                  {service.arabicTitle && (
+                    <p className="font-serif text-xs text-stone-400 dark:text-stone-500 dir-rtl mt-0.5">
+                      {service.arabicTitle}
+                    </p>
+                  )}
                   <p className="text-xs text-stone-600 dark:text-stone-400 mt-2 leading-relaxed">
-                    {service.description}
+                    {service.shortDesc}
                   </p>
 
                   {/* Required Docs List */}
@@ -220,7 +359,7 @@ export const ServicesPage: React.FC = () => {
                       Required Documents
                     </span>
                     <div className="space-y-1">
-                      {service.requiredDocuments.map((doc) => (
+                      {(service.requiredDocs || []).map((doc) => (
                         <div key={doc} className="flex items-center gap-1.5 text-stone-600 dark:text-stone-300">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                           <span className="truncate">{doc}</span>
@@ -233,26 +372,22 @@ export const ServicesPage: React.FC = () => {
                 <div className="mt-6 pt-4 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between gap-2">
                   <div>
                     <span className="text-[10px] text-stone-400 uppercase block">Fee</span>
-                    <span className="font-mono font-bold text-stone-900 dark:text-stone-100 text-xs">
-                      {service.feeETB === 0 ? 'Free of Charge' : `${service.feeETB} ETB`}
+                    <span className="font-mono font-semibold text-stone-900 dark:text-stone-100 text-xs">
+                      {service.feeETB}
                     </span>
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    {service.id === 'srv-2' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        icon={<Calculator className="w-3.5 h-3.5 text-amber-600" />}
-                        onClick={() => {
-                          setActiveTab('zakat');
-                          setSearchParams({ tab: 'zakat' });
-                        }}
-                        className="text-xs"
-                      >
-                        Calculator
-                      </Button>
-                    )}
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      icon={<Info className="w-3.5 h-3.5 text-stone-500" />}
+                      onClick={() => openDetails(service)}
+                      className="text-xs"
+                      title="View Eligibility & How it Works"
+                    >
+                      Details
+                    </Button>
                     <Button
                       variant="primary"
                       size="sm"
@@ -261,64 +396,123 @@ export const ServicesPage: React.FC = () => {
                       onClick={() => openApplication(service)}
                       className="text-xs"
                     >
-                      Apply Online
+                      Apply
                     </Button>
                   </div>
                 </div>
               </Card>
             ))}
           </div>
+
+          {filteredServices.length === 0 && (
+            <div className="text-center py-16 bg-white dark:bg-stone-900 rounded-3xl border border-stone-200 dark:border-stone-800 p-8">
+              <Info className="w-10 h-10 text-stone-400 mx-auto mb-3" />
+              <h3 className="font-serif font-bold text-lg text-stone-800 dark:text-stone-200">
+                No matching services found
+              </h3>
+              <p className="text-xs text-stone-500 mt-1 max-w-sm mx-auto">
+                Try selecting "All" or resetting your search filter.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4 text-xs"
+                onClick={() => {
+                  setSelectedCategory('All');
+                  setSearchFilter('');
+                }}
+              >
+                Reset Filters
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
       {/* Mode 2: Interactive Zakat Calculator */}
       {activeTab === 'zakat' && (
-        <ZakatCalculator />
+        <ZakatCalculator
+          onProceedToPaymentGateway={(amount) => {
+            navigate(`/donate?tab=donate&amount=${amount}&fund=fund-4`);
+          }}
+          gatewayButtonText="Proceed to Donation Gateway with Calculated Zakat →"
+        />
       )}
 
       {/* Mode 3: Tracking Desk */}
       {activeTab === 'track' && (
         <div className="max-w-3xl mx-auto space-y-6">
           <Card className="space-y-4">
-            <h3 className="font-serif font-bold text-lg text-stone-900 dark:text-stone-100">
-              Track Your Council Service Application
-            </h3>
-            <p className="text-xs text-stone-500">
-              Enter your tracking code (e.g. "REQ-2026-001") to check approval, review status, and assigned desk officer.
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-serif font-bold text-lg text-stone-900 dark:text-stone-100">
+                  Track Your Council Service Application
+                </h3>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  Enter your tracking code (e.g. "REQ-2026-00421") to inspect live status, assigned officer, and required next steps.
+                </p>
+              </div>
+            </div>
 
             <form onSubmit={handleTrack} className="flex gap-2">
               <input
                 type="text"
-                placeholder="Enter Tracking No (e.g. REQ-2026-001)..."
+                placeholder="Enter Tracking No (e.g. REQ-2026-00421)..."
                 value={trackQuery}
                 onChange={(e) => setTrackQuery(e.target.value)}
-                className="flex-1 px-4 py-2.5 text-sm rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 outline-hidden font-mono"
+                className="flex-1 px-4 py-2.5 text-sm rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 outline-hidden font-mono text-stone-900 dark:text-stone-100"
               />
-              <Button variant="primary" type="submit">
+              <Button variant="primary" type="submit" icon={<Search className="w-4 h-4" />}>
                 Track
               </Button>
             </form>
+
+            {/* Quick Demo Reference Numbers */}
+            <div className="pt-2 border-t border-stone-100 dark:border-stone-800 flex items-center gap-2 flex-wrap text-xs text-stone-500">
+              <span className="text-[11px] font-medium text-stone-400">Quick Test Codes:</span>
+              {serviceRequests.slice(0, 3).map((req) => (
+                <button
+                  key={req.id}
+                  type="button"
+                  onClick={() => {
+                    setTrackQuery(req.trackingNo);
+                    setSearchedRequest(req);
+                  }}
+                  className="px-2 py-0.5 bg-stone-100 dark:bg-stone-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-mono text-[11px] rounded-md transition-colors cursor-pointer border border-stone-200 dark:border-stone-700"
+                >
+                  {req.trackingNo}
+                </button>
+              ))}
+            </div>
           </Card>
 
           {searchedRequest && (
-            <Card className="space-y-5 border-emerald-500/40">
+            <Card className="space-y-5 border-emerald-500/40 shadow-lg">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 dark:border-stone-800 pb-3">
                 <div>
-                  <span className="text-xs font-mono text-stone-400 block">
-                    Tracking #{searchedRequest.trackingNo}
-                  </span>
-                  <h4 className="font-serif font-bold text-lg text-stone-900 dark:text-stone-100">
-                    {searchedRequest.serviceName}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono font-bold text-stone-600 dark:text-stone-300">
+                      Tracking #{searchedRequest.trackingNo}
+                    </span>
+                    <button
+                      onClick={() => copyTracking(searchedRequest.trackingNo)}
+                      className="text-stone-400 hover:text-emerald-700 transition-colors p-1"
+                      title="Copy Tracking Number"
+                    >
+                      {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                  <h4 className="font-serif font-bold text-lg text-stone-900 dark:text-stone-100 mt-1">
+                    {searchedRequest.serviceType || searchedRequest.serviceName}
                   </h4>
                 </div>
                 <Badge
                   variant={
-                    searchedRequest.status === 'Completed'
+                    searchedRequest.status === 'Completed' || searchedRequest.status === 'Disbursed'
                       ? 'emerald'
                       : searchedRequest.status === 'Approved'
                       ? 'teal'
-                      : searchedRequest.status === 'In Review'
+                      : searchedRequest.status === 'Under Review'
                       ? 'blue'
                       : 'gold'
                   }
@@ -338,13 +532,13 @@ export const ServicesPage: React.FC = () => {
                 <div>
                   <span className="text-stone-400 block text-[10px] uppercase">Contact Phone</span>
                   <span className="font-mono text-stone-800 dark:text-stone-200">
-                    {searchedRequest.phone}
+                    {searchedRequest.applicantPhone || searchedRequest.phone}
                   </span>
                 </div>
                 <div>
                   <span className="text-stone-400 block text-[10px] uppercase">District Desk</span>
                   <span className="font-medium text-stone-800 dark:text-stone-200">
-                    {searchedRequest.district}
+                    {searchedRequest.applicantDistrict || searchedRequest.district}
                   </span>
                 </div>
                 <div>
@@ -353,9 +547,21 @@ export const ServicesPage: React.FC = () => {
                     {searchedRequest.submissionDate}
                   </span>
                 </div>
-                <div className="col-span-2">
+                <div>
+                  <span className="text-stone-400 block text-[10px] uppercase">Priority</span>
+                  <span className="font-semibold text-stone-800 dark:text-stone-200">
+                    {searchedRequest.priority || 'Normal'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-stone-400 block text-[10px] uppercase">Documents</span>
+                  <span className="font-mono text-stone-800 dark:text-stone-200">
+                    {searchedRequest.documentsCount || 2} files verified
+                  </span>
+                </div>
+                <div className="col-span-2 sm:col-span-3">
                   <span className="text-stone-400 block text-[10px] uppercase">Assigned Council Officer</span>
-                  <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                  <span className="font-semibold text-emerald-700 dark:text-emerald-400 text-sm">
                     {searchedRequest.assignedOfficer}
                   </span>
                 </div>
@@ -363,15 +569,118 @@ export const ServicesPage: React.FC = () => {
 
               <div className="p-3.5 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 text-xs">
                 <span className="font-bold text-stone-700 dark:text-stone-300 block mb-1">
-                  Application Details:
+                  Application Summary & Case Notes:
                 </span>
                 <p className="text-stone-600 dark:text-stone-400 leading-relaxed">
-                  {searchedRequest.details}
+                  {searchedRequest.notes || searchedRequest.details || 'Standard Shari’ah document processing in progress.'}
                 </p>
               </div>
             </Card>
           )}
         </div>
+      )}
+
+      {/* Service Details & Step-by-Step Modal */}
+      {detailService && (
+        <Modal
+          isOpen={isDetailModalOpen}
+          onClose={() => setIsDetailModalOpen(false)}
+          title={detailService.title}
+          subtitle={`${detailService.category} • Official Jimma Council Desk`}
+        >
+          <div className="space-y-5 text-xs sm:text-sm">
+            {detailService.arabicTitle && (
+              <div className="p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800/60 font-serif text-right text-emerald-800 dark:text-emerald-300 text-base dir-rtl">
+                {detailService.arabicTitle}
+              </div>
+            )}
+
+            <div>
+              <h5 className="font-bold text-stone-800 dark:text-stone-200 uppercase text-[11px] tracking-wider mb-1">
+                Overview
+              </h5>
+              <p className="text-stone-600 dark:text-stone-400 leading-relaxed">
+                {detailService.fullDesc || detailService.shortDesc}
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/60">
+              <h5 className="font-bold text-amber-900 dark:text-amber-300 uppercase text-[11px] tracking-wider mb-1">
+                Eligibility Criteria
+              </h5>
+              <p className="text-amber-800 dark:text-amber-200 leading-relaxed text-xs">
+                {detailService.eligibility}
+              </p>
+            </div>
+
+            <div>
+              <h5 className="font-bold text-stone-800 dark:text-stone-200 uppercase text-[11px] tracking-wider mb-2">
+                Step-by-Step Procedure
+              </h5>
+              <div className="space-y-2">
+                {(detailService.howItWorks || []).map((step, idx) => (
+                  <div key={idx} className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-300 font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">
+                      {idx + 1}
+                    </span>
+                    <span className="text-stone-600 dark:text-stone-300 leading-relaxed text-xs">
+                      {step}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h5 className="font-bold text-stone-800 dark:text-stone-200 uppercase text-[11px] tracking-wider mb-2">
+                Required Documents
+              </h5>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {(detailService.requiredDocs || []).map((doc, idx) => (
+                  <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-stone-50 dark:bg-stone-800 border border-stone-200/60 dark:border-stone-700/60 text-xs text-stone-700 dark:text-stone-300">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{doc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 rounded-xl bg-stone-100 dark:bg-stone-800/80 text-xs">
+              <div>
+                <span className="text-stone-400 block text-[10px] uppercase">Processing Time</span>
+                <span className="font-semibold text-stone-800 dark:text-stone-200">{detailService.processingTime}</span>
+              </div>
+              <div>
+                <span className="text-stone-400 block text-[10px] uppercase">Official Fee</span>
+                <span className="font-semibold text-stone-800 dark:text-stone-200">{detailService.feeETB}</span>
+              </div>
+              <div className="col-span-2 sm:col-span-1">
+                <span className="text-stone-400 block text-[10px] uppercase">Desk Officer</span>
+                <span className="font-semibold text-emerald-700 dark:text-emerald-400">{detailService.contactPerson}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100 dark:border-stone-800">
+              <Button
+                variant="ghost"
+                onClick={() => setIsDetailModalOpen(false)}
+              >
+                Close
+              </Button>
+              <Button
+                variant="primary"
+                icon={<ArrowRight className="w-4 h-4" />}
+                iconPosition="right"
+                onClick={() => {
+                  setIsDetailModalOpen(false);
+                  openApplication(detailService);
+                }}
+              >
+                Proceed to Online Application
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {/* Service Application Modal */}
@@ -380,7 +689,7 @@ export const ServicesPage: React.FC = () => {
           isOpen={isApplyModalOpen}
           onClose={() => setIsApplyModalOpen(false)}
           title={`Apply for: ${selectedService.title}`}
-          subtitle={`Processing Time: ${selectedService.turnaroundTime} • Standard Shari'ah Compliance Review`}
+          subtitle={`Processing Time: ${selectedService.processingTime} • Standard Shari'ah Compliance Review`}
         >
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -421,13 +730,15 @@ export const ServicesPage: React.FC = () => {
                   onChange={(e) => setDistrict(e.target.value)}
                   className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-stone-900 dark:text-stone-100"
                 >
-                  <option value="Jimma Central">Jimma Central</option>
+                  <option value="Jimma Central">Jimma Central (Hermata)</option>
                   <option value="Agaro Town">Agaro Town</option>
                   <option value="Kersa District">Kersa District</option>
                   <option value="Mana District">Mana District</option>
                   <option value="Gomma District">Gomma District</option>
                   <option value="Limmu Kosa">Limmu Kosa</option>
                   <option value="Seka Chekorsa">Seka Chekorsa</option>
+                  <option value="Dedo District">Dedo District</option>
+                  <option value="Omo Nada">Omo Nada</option>
                 </select>
               </div>
             </div>
@@ -448,7 +759,7 @@ export const ServicesPage: React.FC = () => {
             <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-900 dark:text-emerald-200 space-y-1">
               <div className="font-bold">Required to present at interview:</div>
               <ul className="list-disc list-inside space-y-0.5 text-[11px] text-emerald-800 dark:text-emerald-300">
-                {selectedService.requiredDocuments.map((doc) => (
+                {(selectedService.requiredDocs || []).map((doc) => (
                   <li key={doc}>{doc}</li>
                 ))}
               </ul>
