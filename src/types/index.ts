@@ -436,6 +436,19 @@ export interface CouncilEvent {
   materials?: { title: string; fileType: string; size: string; downloadUrl?: string }[];
 }
 
+export interface EventNotificationSubscription {
+  id: string;
+  email?: string;
+  name?: string;
+  enableEmail: boolean;
+  enableBrowser: boolean;
+  categories: string[];
+  districts: string[];
+  reminderTiming: 'instant' | '24h_before' | '48h_before' | 'weekly_digest';
+  subscribedAt: string;
+  specificEventIds?: string[];
+}
+
 export interface Announcement {
   id: string;
   title: string;

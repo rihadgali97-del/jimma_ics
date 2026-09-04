@@ -22,6 +22,8 @@ import {
   Sparkles,
   ChevronRight,
   Info,
+  Bell,
+  BellRing,
 } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
@@ -40,7 +42,13 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   onClose,
   onOpenPass,
 }) => {
-  const { registerForEvent, eventRegistrations, addToast } = useApp();
+  const {
+    registerForEvent,
+    eventRegistrations,
+    toggleEventReminder,
+    isSubscribedToEvent,
+    addToast,
+  } = useApp();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'agenda' | 'speakers' | 'register'>('overview');
 
@@ -168,19 +176,32 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             ))}
           </div>
 
-          <div className="hidden sm:flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <button
+              onClick={() => toggleEventReminder(event.id)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
+                isSubscribedToEvent(event.id)
+                  ? 'bg-amber-500 text-stone-950 border-amber-600 shadow-xs'
+                  : 'bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-200 dark:border-stone-700 hover:border-amber-500/50'
+              }`}
+              title={isSubscribedToEvent(event.id) ? 'Reminder is Active (Click to cancel)' : 'Set Notification Reminder'}
+            >
+              <Bell className={`w-3.5 h-3.5 ${isSubscribedToEvent(event.id) ? 'fill-current' : 'text-amber-500'}`} />
+              <span className="hidden sm:inline">{isSubscribedToEvent(event.id) ? 'Reminder Active' : 'Remind Me'}</span>
+            </button>
+
             <a
               href={getGoogleCalendarUrl(event)}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 text-stone-500 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+              className="p-2 text-stone-500 hover:text-amber-600 dark:hover:text-amber-400 transition-colors rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800"
               title="Add to Google Calendar"
             >
               <CalendarPlus className="w-4 h-4" />
             </a>
             <button
               onClick={() => downloadEventIcs(event)}
-              className="p-2 text-stone-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              className="p-2 text-stone-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800"
               title="Download iCal"
             >
               <Calendar className="w-4 h-4" />
@@ -309,6 +330,35 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* Event Notification & Reminder Card */}
+              <div className="p-4 rounded-2xl bg-stone-100 dark:bg-stone-800/70 border border-stone-200 dark:border-stone-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <BellRing className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-stone-900 dark:text-stone-100">
+                      Automated Event Reminders (Email & Browser)
+                    </h4>
+                    <p className="text-xs text-stone-500 dark:text-stone-400">
+                      {isSubscribedToEvent(event.id)
+                        ? 'Reminder active for this event. You will receive an alert prior to commencement.'
+                        : `Receive reminders 24–48 hours prior to the program at ${event.location}.`}
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  variant={isSubscribedToEvent(event.id) ? 'outline' : 'gold'}
+                  size="sm"
+                  onClick={() => toggleEventReminder(event.id)}
+                  icon={<Bell className="w-3.5 h-3.5" />}
+                  className="shrink-0 text-xs font-semibold"
+                >
+                  {isSubscribedToEvent(event.id) ? 'Cancel Reminder' : 'Set Event Reminder'}
+                </Button>
+              </div>
 
               {/* Action Banner to Register */}
               <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-col sm:flex-row items-center justify-between gap-4">

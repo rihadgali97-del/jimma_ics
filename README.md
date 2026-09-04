@@ -24,6 +24,7 @@ An integrated digital governance portal and civic services platform engineered f
 ### 3. Community Gateway & Broadcast Center
 - **Telegram Channel Integration**: Connected with the official broadcast channel [t.me/emyc1](https://t.me/emyc1) for instant announcements, prayer updates, and public notices.
 - **Zonal SMS / Telegram Dispatcher**: Bulk notification dispatch system supporting critical alerts, emergency janazah notices, and educational sabaq announcements across registered imams and community subscribers.
+- **Event Notification & Reminder Center**: Email and native browser push subscriptions for upcoming Quran Tahfeez competitions, Ulema symposia, youth workshops, and Ramadan community gatherings with customizable timing (instant, 24h prior, 48h prior, weekly Friday digest) and district-level filters.
 
 ### 4. Transparency, Waqf & Institutional Governance (`/transparency`, `/about`)
 - **Executive Leadership Directory**: Biographies and portfolios of the Council President, Mufti / Fatwa Board Chairman, General Secretary, and Shari'ah Advisory Board.

@@ -23,16 +23,27 @@ import {
   Share2,
   ExternalLink,
   Award,
+  Bell,
+  BellRing,
 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { EventDetailModal } from '../../components/events/EventDetailModal';
 import { EventPassModal } from '../../components/events/EventPassModal';
+import { EventNotificationModal } from '../../components/events/EventNotificationModal';
+import { EventNotificationBanner } from '../../components/events/EventNotificationBanner';
 import { getGoogleCalendarUrl, downloadEventIcs } from '../../utils/calendarUtils';
 
 export const EventsPage: React.FC = () => {
-  const { events, eventRegistrations, addToast } = useApp();
+  const {
+    events,
+    eventRegistrations,
+    eventSubscriptions,
+    toggleEventReminder,
+    isSubscribedToEvent,
+    addToast,
+  } = useApp();
 
   // Search & Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -47,6 +58,8 @@ export const EventsPage: React.FC = () => {
     event: CouncilEvent;
     registration: EventRegistration;
   } | null>(null);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [selectedEventForNotification, setSelectedEventForNotification] = useState<string | undefined>(undefined);
 
   const categories = [
     'All',
@@ -145,6 +158,20 @@ export const EventsPage: React.FC = () => {
           {/* Quick Action Buttons */}
           <div className="flex flex-wrap items-center gap-3 shrink-0">
             <button
+              onClick={() => {
+                setSelectedEventForNotification(undefined);
+                setIsNotificationModalOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-semibold transition-all shadow-md bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40"
+            >
+              <BellRing className="w-4 h-4 text-amber-400" />
+              <span>Subscribe to Alerts</span>
+              {eventSubscriptions.length > 0 && (
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              )}
+            </button>
+
+            <button
               onClick={() => setStatusTab(statusTab === 'MyPasses' ? 'All' : 'MyPasses')}
               className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-semibold transition-all shadow-md ${
                 statusTab === 'MyPasses'
@@ -180,6 +207,14 @@ export const EventsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Event Notification Subscription Banner */}
+      <EventNotificationBanner
+        onOpenPreferences={() => {
+          setSelectedEventForNotification(undefined);
+          setIsNotificationModalOpen(true);
+        }}
+      />
 
       {/* MY PASSES SECTION (WHEN TOGGLED) */}
       {statusTab === 'MyPasses' && (
@@ -446,6 +481,27 @@ export const EventsPage: React.FC = () => {
                     View Agenda
                   </Button>
 
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const isNowSubbed = toggleEventReminder(event.id);
+                      if (isNowSubbed && eventSubscriptions.length === 0) {
+                        setSelectedEventForNotification(event.id);
+                        setIsNotificationModalOpen(true);
+                      }
+                    }}
+                    className={`p-2 rounded-xl border transition-colors ${
+                      isSubscribedToEvent(event.id)
+                        ? 'bg-amber-500 text-stone-950 border-amber-600 shadow-xs'
+                        : 'bg-stone-50 dark:bg-stone-800 text-stone-500 hover:text-amber-500 border-stone-200 dark:border-stone-700'
+                    }`}
+                    title={isSubscribedToEvent(event.id) ? 'Reminder Active (Click to remove)' : 'Notify Me for this event'}
+                    aria-label="Toggle Event Reminder"
+                  >
+                    <Bell className={`w-3.5 h-3.5 ${isSubscribedToEvent(event.id) ? 'fill-current' : ''}`} />
+                  </button>
+
                   {userReg ? (
                     <Button
                       variant="primary"
@@ -548,15 +604,38 @@ export const EventsPage: React.FC = () => {
                 </div>
 
                 {/* Action Col */}
-                <div className="md:w-44 shrink-0 flex md:flex-col justify-center gap-2 pt-3 md:pt-0 border-t md:border-t-0 border-stone-100 dark:border-stone-800">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full text-xs"
-                    onClick={() => handleOpenRegistrationModal(event)}
-                  >
-                    View Details
-                  </Button>
+                <div className="md:w-48 shrink-0 flex md:flex-col justify-center gap-2 pt-3 md:pt-0 border-t md:border-t-0 border-stone-100 dark:border-stone-800">
+                  <div className="flex items-center gap-1.5 w-full">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-xs"
+                      onClick={() => handleOpenRegistrationModal(event)}
+                    >
+                      View Details
+                    </Button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const isNowSubbed = toggleEventReminder(event.id);
+                        if (isNowSubbed && eventSubscriptions.length === 0) {
+                          setSelectedEventForNotification(event.id);
+                          setIsNotificationModalOpen(true);
+                        }
+                      }}
+                      className={`p-2 rounded-xl border transition-colors ${
+                        isSubscribedToEvent(event.id)
+                          ? 'bg-amber-500 text-stone-950 border-amber-600 shadow-xs'
+                          : 'bg-stone-50 dark:bg-stone-800 text-stone-500 hover:text-amber-500 border-stone-200 dark:border-stone-700'
+                      }`}
+                      title={isSubscribedToEvent(event.id) ? 'Reminder Active (Click to remove)' : 'Notify Me for this event'}
+                      aria-label="Toggle Event Reminder"
+                    >
+                      <Bell className={`w-3.5 h-3.5 ${isSubscribedToEvent(event.id) ? 'fill-current' : ''}`} />
+                    </button>
+                  </div>
 
                   {userReg ? (
                     <Button
@@ -607,6 +686,13 @@ export const EventsPage: React.FC = () => {
           onClose={() => setSelectedPassData(null)}
         />
       )}
+
+      {/* Event Notification & Reminder Modal */}
+      <EventNotificationModal
+        isOpen={isNotificationModalOpen}
+        onClose={() => setIsNotificationModalOpen(false)}
+        preselectedEventId={selectedEventForNotification}
+      />
 
     </div>
   );

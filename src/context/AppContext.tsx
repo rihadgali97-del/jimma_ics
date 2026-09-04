@@ -22,6 +22,7 @@ import {
   DispatchLogItem,
   GatewayChannelStats,
   EventRegistration,
+  EventNotificationSubscription,
   RoleDefinition,
   PermissionCategory,
   SecurityAuditLog,
@@ -128,6 +129,11 @@ interface AppContextType {
   registerForEvent: (data: Omit<EventRegistration, 'id' | 'passNumber' | 'status' | 'createdAt'>) => EventRegistration;
   cancelRegistration: (regId: string) => void;
   checkInAttendee: (regId: string) => void;
+  eventSubscriptions: EventNotificationSubscription[];
+  saveEventSubscription: (sub: Omit<EventNotificationSubscription, 'id' | 'subscribedAt'>) => EventNotificationSubscription;
+  removeEventSubscription: (id: string) => void;
+  toggleEventReminder: (eventId: string) => boolean;
+  isSubscribedToEvent: (eventId: string) => boolean;
   announcements: Announcement[];
   documents: CouncilDocument[];
 
@@ -273,6 +279,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>(mockServiceRequests);
   const [events, setEvents] = useState<CouncilEvent[]>(mockEvents);
   const [eventRegistrations, setEventRegistrations] = useState<EventRegistration[]>(mockEventRegistrations);
+  const [eventSubscriptions, setEventSubscriptions] = useState<EventNotificationSubscription[]>(() => {
+    try {
+      const saved = localStorage.getItem('jic_event_subscriptions');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return [
+      {
+        id: 'sub-init-1',
+        email: 'community.member@jimma.et',
+        name: 'Jimma Community Member',
+        enableEmail: true,
+        enableBrowser: true,
+        categories: ['All'],
+        districts: ['All'],
+        reminderTiming: '24h_before',
+        subscribedAt: '2026-09-01',
+        specificEventIds: ['ev-1', 'ev-2'],
+      },
+    ];
+  });
   const [announcements] = useState<Announcement[]>(mockAnnouncements);
   const [documents] = useState<CouncilDocument[]>(mockDocuments);
   const [resources, setResources] = useState<CouncilResource[]>(initialCouncilResources);
@@ -1135,6 +1163,118 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addToast('Attendee Checked In', 'Pass verified at venue entrance.', 'success');
   };
 
+  const saveEventSubscription = (
+    data: Omit<EventNotificationSubscription, 'id' | 'subscribedAt'>
+  ): EventNotificationSubscription => {
+    const id = `sub-${Date.now()}`;
+    const today = new Date().toISOString().split('T')[0];
+    const newSub: EventNotificationSubscription = {
+      ...data,
+      id,
+      subscribedAt: today,
+    };
+
+    setEventSubscriptions((prev) => {
+      const filtered = prev.filter((s) => (data.email && s.email && s.email.toLowerCase() === data.email.toLowerCase()) ? false : true);
+      const updated = [newSub, ...filtered];
+      try {
+        localStorage.setItem('jic_event_subscriptions', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+
+    const channelDesc = [
+      data.enableEmail && data.email ? `Email (${data.email})` : '',
+      data.enableBrowser ? 'Browser Alerts' : '',
+    ].filter(Boolean).join(' and ');
+
+    addToast(
+      'Subscribed to Event Notifications!',
+      `You will receive alerts via ${channelDesc || 'your selected channels'}.`,
+      'success'
+    );
+
+    return newSub;
+  };
+
+  const removeEventSubscription = (id: string) => {
+    setEventSubscriptions((prev) => {
+      const updated = prev.filter((s) => s.id !== id);
+      try {
+        localStorage.setItem('jic_event_subscriptions', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+    addToast('Subscription Removed', 'You will no longer receive notifications for this alert channel.', 'info');
+  };
+
+  const toggleEventReminder = (eventId: string): boolean => {
+    let nowSubscribed = false;
+    setEventSubscriptions((prev) => {
+      const active = prev[0] || {
+        id: `sub-${Date.now()}`,
+        email: '',
+        name: 'Community Member',
+        enableEmail: false,
+        enableBrowser: true,
+        categories: ['All'],
+        districts: ['All'],
+        reminderTiming: '24h_before' as const,
+        subscribedAt: new Date().toISOString().split('T')[0],
+        specificEventIds: [],
+      };
+
+      const currentIds = active.specificEventIds || [];
+      const exists = currentIds.includes(eventId);
+      nowSubscribed = !exists;
+
+      const newIds = exists
+        ? currentIds.filter((id) => id !== eventId)
+        : [...currentIds, eventId];
+
+      const updatedActive: EventNotificationSubscription = {
+        ...active,
+        enableBrowser: true,
+        specificEventIds: newIds,
+      };
+
+      const updated = [updatedActive, ...prev.filter((s) => s.id !== active.id)];
+      try {
+        localStorage.setItem('jic_event_subscriptions', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+
+    const targetEvent = events.find((e) => e.id === eventId);
+    const eventName = targetEvent ? targetEvent.title : 'this event';
+
+    if (nowSubscribed) {
+      addToast(
+        'Event Reminder Set! 🔔',
+        `You will receive an alert prior to "${eventName}".`,
+        'success'
+      );
+    } else {
+      addToast(
+        'Event Reminder Removed',
+        `Reminder turned off for "${eventName}".`,
+        'info'
+      );
+    }
+
+    return nowSubscribed;
+  };
+
+  const isSubscribedToEvent = (eventId: string): boolean => {
+    return eventSubscriptions.some((s) => s.specificEventIds?.includes(eventId));
+  };
+
   // Resource Management Handlers
   const addResource = (
     data: Omit<CouncilResource, 'id' | 'uploadDate' | 'downloadsCount'>
@@ -1376,6 +1516,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         registerForEvent,
         cancelRegistration,
         checkInAttendee,
+        eventSubscriptions,
+        saveEventSubscription,
+        removeEventSubscription,
+        toggleEventReminder,
+        isSubscribedToEvent,
         announcements,
         documents,
         resources,
